@@ -1,0 +1,9 @@
+/autoconf/
+/autom4te.cache/
+/aclocal.m4
+/autoconf.h.in
+/configure
+/Makefile.in
+
+# Please name your build and other local trees like this.
+/+*/

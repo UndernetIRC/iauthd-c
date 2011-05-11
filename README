@@ -1,0 +1,73 @@
+About iauthd-c
+==============
+
+This program is a reference framework and set of modules that
+implement (Undernet) ircu's IAuth client authorization (and sometimes
+authentication) protocol.
+
+An IRC server that uses IAuth communicates with this program over this
+standard input and output using a standard protocol (defined in the
+ircu source tree, doc/readme.iauth).  The server tells this program
+about new client connections, and usually waits until iauthd-c accepts
+or rejects the client before finishing the "registration" phase -- at
+that point, the server tells the rest of the network about the client.
+
+This means that this program can do a bunch of checks about a client
+to see whether it should be allowed on the network, and potentially
+what IRC account stamp to give the client, before anyone on the
+network can see the client (or the client's IP address, and before the
+client can bother anyone else).
+
+Architecture
+============
+
+iauthd-c uses libevent (http://www.monkey.org/~provos/libevent/) for
+I/O multiplexing and DNS resolution.
+
+At the moment, iauthd-c is single-threaded, because we do not
+anticipate it being compute-bound or otherwise benefiting from using
+concurrent threads of execution.
+
+The iauthd-c core application provides a framework for making
+decisions but does not contain any actual decision-making code.  It
+loads shared libraries from LIBEXECDIR/iauthd-c/ to do that; these
+libraries are called iauthd modules.
+
+Module Interfaces
+=================
+
+Each module is described by an opaque structure (struct module) and
+should export up to three standard entry points:
+
+ - void module_constructor(const char module_name[])
+
+   This is the first function to be called.  It should only assume
+   that the iauthd-c core (including libevent and the C library) are
+   loaded, unless the shared library directly links to some other
+   library.  This function can call module_depends() to indicate
+   other iauthd modules it depends upon.
+
+ - void module_post_init(struct module *self)
+
+   This optional entry point can perform second-pass initialization
+   that requires other iauthd modules to be loaded.
+
+ - void module_destructor(void)
+
+   This optional entry point is called just before the module is
+   unloaded, and should release any persistent resources owned by the
+   module.
+
+The module core exports two functions that modules might use to
+express load (or unload) order:
+
+ - void module_depends(const char name[], ...) (null-terminated list)
+
+   This function declares that the currently loading module depends
+   on one or more other modules, as named.
+
+ - void module_antidepends(const char name[])
+
+   This function declares that the currently loading module is a
+   back-end provider for some other module, and must be unloaded after
+   it.

@@ -1,0 +1,10 @@
+iauthd-c News
+=============
+
+2011-05-10: Project initiated!
+------------------------------
+
+This project has been initiated as a reference implementation of the
+IAuth protocol in C.  Some of the code is borrowed from a previously
+unpublished code base, which is why there are pre-2011 copyright
+notices in a few places.

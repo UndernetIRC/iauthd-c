@@ -22,22 +22,25 @@ Architecture
 ============
 
 iauthd-c uses libevent (http://www.monkey.org/~provos/libevent/) for
-I/O multiplexing and DNS resolution.
+I/O multiplexing.  Extension modules can use either libevent's
+asynchronous DNS resolver (evdns_*) or a more full-featured one in
+iauthd-c (sar_*).
 
 At the moment, iauthd-c is single-threaded, because we do not
-anticipate it being compute-bound or otherwise benefiting from using
+anticipate it being compute-bound or otherwise benefiting from
 concurrent threads of execution.
 
 The iauthd-c core application provides a framework for making
-decisions but does not contain any actual decision-making code.  It
-loads shared libraries from LIBEXECDIR/iauthd-c/ to do that; these
-libraries are called iauthd modules.
+decisions but does not contain any actual decision-making code (or
+even IAuth code).  It loads shared libraries from LIBEXECDIR/iauthd-c/
+to do that; these libraries are called iauthd modules.
 
 Module Interfaces
 =================
 
 Each module is described by an opaque structure (struct module) and
-should export up to three standard entry points:
+should export up to three standard entry points, with exactly these
+names (do NOT replace "module_" with the name of the module!):
 
  - void module_constructor(const char module_name[])
 
@@ -71,3 +74,25 @@ express load (or unload) order:
    This function declares that the currently loading module is a
    back-end provider for some other module, and must be unloaded after
    it.
+
+IAuth Interfaces
+================
+
+The code in the src directory is utility code rather than relating to
+IAuth.  The IAuth-specific code is in modules/iauth.c and
+modules/iauth.h.  Typically, iauth modules should call
+module_depends("iauth", NULL) to indicate that they provide services
+to the iauth modules.
+
+Compiling
+=========
+
+From a totally fresh source tree, you should run these commands to
+generate the first build.  (Except for the mkdir, running them again
+later should be harmless.)
+
+  autoreconf -Wall -i
+  mkdir +build
+  cd +build
+  ../configure --enable-silent-rules
+  make

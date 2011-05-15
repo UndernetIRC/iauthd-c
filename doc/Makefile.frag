@@ -1,4 +1,4 @@
-# Makefile.frag - -*- makefile -*- rules to build iauthd-c
+# Makefile.frag - -*- makefile -*- rules to install iauthd-c docs
 #
 # Copyright 2011 Michael Poole <mdpoole@troilus.org>
 #
@@ -22,23 +22,4 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# NOTE: automake and libtool (at least 1.7.9 and 1.5.6, respectively)
-# sort of lose when you have conditional shared libraries.  So we
-# define a bonus variable, EXTRA_LDFLAGS, that should be used with
-# each conditional library.  The -rpath makes libtool generate a
-# shared library instead of a static library.
-EXTRA_LDFLAGS = $(AM_LDFLAGS) -rpath $(pkglibdir)
-
-pkglib_LTLIBRARIES = \
-	modules/iauth.la \
-	modules/iauth_loc.la
-
-modules_iauth_la_SOURCES = \
-	modules/iauth.h \
-	modules/iauth_core.c \
-	modules/iauth_misc.c
-modules_iauth_la_LDFLAGS = $(EXTRA_LDFLAGS)
-
-modules_iauth_loc_la_SOURCES = \
-	modules/iauth_loc.c
-modules_iauth_loc_la_LDFLAGS = $(EXTRA_LDFLAGS)
+sysconf_DATA = doc/iauthd-c.conf.example

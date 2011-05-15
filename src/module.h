@@ -28,6 +28,7 @@
 /** Multiple-inclusion guard for "src/module.h". */
 #define MODULE_H_0a98f550_dbab_4c67_b3c4_bc295ab779a6
 
+/* Forward-declare the opaque module type. */
 struct module;
 
 /* Interface to main.c */

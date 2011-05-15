@@ -28,6 +28,8 @@
 /** Multiple-inclusion guard for "src/compat.h". */
 #define COMPAT_H_6f7b39aa_9c51_4b5a_8169_4e145da0e027
 
+#include "autoconf.h"
+
 /* ANSI C89 headers -- every system should have them. */
 #include <assert.h>
 #include <ctype.h>
@@ -90,6 +92,10 @@
 #if !defined(HAVE_GMTIME_R)
 /* For a single-threaded application, this provides reentrant behavior. */
 #define gmtime_r(CLOCK, RES) memcpy((RES), gmtime(CLOCK), sizeof(struct tm))
+#endif
+
+#if !defined(HAVE_STRLCPY)
+size_t strlcpy(char *out, const char *in, size_t len);
 #endif
 
 #if defined(HAVE_VA_COPY)

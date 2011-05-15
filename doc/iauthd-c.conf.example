@@ -1,0 +1,43 @@
+// With Emacs, edit in -*- mode: c++ -*- for best legibility.
+/* Informally, the grammar of this file is as follows:
+ *
+ * file: contents
+ * contents: ( string value ';' )*
+ * string: quoted string; or unquoted sequence of letters, digits,
+ *   '-', '.', '_' and '#'
+ * value: string | inaddr | stringlist | object
+ * inaddr: string string, representing host name and port number or name
+ * stringlist: '(' ( ( string ',' )* string )? ')'
+ * object: '{' contents '}'
+ *
+ * Comments can be either C or C++ style.
+ */
+
+core {
+    // You may want a library-path line if your run srvx from the build tree.
+    // library_path ( "./modules" );
+    modules ( iauth_loc );
+};
+
+logs {
+    // Contents in this section have names that consist of a facility
+    // name, a period, and a severity name or range.  Some facility
+    // names, and all of the severities, are listed below.  The values
+    // are either target names or lists of target names.  A log target
+    // consists of a method, a colon, and method-specific options.
+
+    // Predefined core log facilities are: core, config, resolver, *.
+    // The facility named * receives all messages.
+
+    // The log severities, from least to most severe, are: debug,
+    // command, info, warning, error, fatal.
+
+    // Supported log methods: file (with file names relative to
+    // /usr/local/log/).
+
+    "*.>=info" "file:iauthd-c.log";
+};
+
+iauth_loc {
+    "server" "channels.example.org";
+};

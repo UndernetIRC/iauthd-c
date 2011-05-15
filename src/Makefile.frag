@@ -44,10 +44,16 @@ src/git-version.c: checkversion
 endif
 
 src_iauthd_c_SOURCES = \
-	src/common.h \
+	src/bitset.c src/bitset.h \
+	src/common.c src/common.h \
 	src/compat.h \
+	src/config.c src/config.h \
 	src/git-version.c \
+	src/log.c src/log.h \
 	src/main.c \
-	src/module.c src/module.h
+	src/module.c src/module.h \
+	src/sar.c src/sar.h \
+	src/set.c src/set.h \
+	src/vector.h
 
 src_iauthd_c_LDFLAGS = -export-dynamic

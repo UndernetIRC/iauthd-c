@@ -27,9 +27,10 @@ ACLOCAL_AMFLAGS = -I autoconf
 
 STRICT_CFLAGS = @STRICT_CFLAGS@
 AM_CFLAGS = $(STRICT_CFLAGS) -I$(top_srcdir) -I$(top_builddir)
-AM_CPPFLAGS = -DSYSCONFDIR="\"$(sysconfdir)\"" -DMODULESDIR="\"$(pkglibexecdir)\""
+AM_CPPFLAGS = -DSYSCONFDIR="\"$(sysconfdir)\"" -DMODULESDIR="\"$(pkglibexecdir)\"" -DLOGDIR="\"$(localstatedir)/log\""
 AM_LDFLAGS = -module -avoid-version -export-dynamic
 
+include $(srcdir)/doc/Makefile.frag
 include $(srcdir)/src/Makefile.frag
 include $(srcdir)/modules/Makefile.frag
 include $(srcdir)/tests/Makefile.frag

@@ -76,23 +76,14 @@ module_cleanup(void *module_)
 #endif
 }
 
-void
-module_init(void)
+void module_init(void)
 {
-    struct string_vector path;
-
     reg_exit_func(module_clean);
     modules.compare = set_compare_charp;
     modules.cleanup = module_cleanup;
-
-    string_vector_init(&path, 1);
-    string_vector_append(&path, PKGLIBDIR);
-    module_add_path(&path);
-    string_vector_clear(&path);
 }
 
-struct module *
-module_get(const char *name)
+struct module * module_get(const char *name)
 {
     struct module *mod;
     struct set_node *node;
@@ -108,14 +99,12 @@ module_get(const char *name)
     return mod;
 }
 
-const char*
-module_get_name(const struct module *mod)
+const char* module_get_name(const struct module *mod)
 {
     return mod ? mod->name : NULL;
 }
 
-static void *
-module_dlopen(const char *name)
+static void * module_dlopen(const char *name)
 {
     void *handle;
     unsigned int ii;
@@ -135,11 +124,11 @@ module_dlopen(const char *name)
     return dlopen(name, flags);
 }
 
-static struct module *
-module_load(const char *name)
+static struct module *module_load(const char *name)
 {
     void (*func)(const char *);
-    struct module *mod, *prior;
+    struct module *mod;
+    struct module *prior;
 
     /* If the module already exists, don't initialize it again. */
     mod = set_find(&modules, &name);
@@ -165,8 +154,7 @@ module_load(const char *name)
     return mod;
 }
 
-void
-module_depends(const char *name, ...)
+void module_depends(const char *name, ...)
 {
     va_list args;
 
@@ -184,8 +172,7 @@ module_depends(const char *name, ...)
     va_end(args);
 }
 
-void
-module_antidepends(const char *name, ...)
+void module_antidepends(const char *name, ...)
 {
     va_list args;
 
@@ -203,15 +190,13 @@ module_antidepends(const char *name, ...)
     va_end(args);
 }
 
-void
-module_is_backend(void)
+void module_is_backend(void)
 {
     assert(loading_module != NULL);
     loading_module->is_backend++;
 }
 
-static int
-module_dfs(struct module *module, int visit)
+static int module_dfs(struct module *module, int visit)
 {
     unsigned int ii;
     void (*func)(struct module *self);
@@ -240,8 +225,7 @@ module_dfs(struct module *module, int visit)
     return 0;
 }
 
-int
-module_add_path(const struct string_vector *list)
+int module_add_path(const struct string_vector *list)
 {
     unsigned int ii;
 
@@ -251,8 +235,7 @@ module_add_path(const struct string_vector *list)
     return 0;
 }
 
-int
-module_load_list(const struct string_vector *list)
+int module_load_list(const struct string_vector *list)
 {
     struct set_node *node;
     unsigned int ii;
@@ -300,10 +283,10 @@ module_load_list(const struct string_vector *list)
     return 0;
 }
 
-void
-module_close_all(void)
+void module_close_all(void)
 {
-    struct set_node *node, *next;
+    struct set_node *node;
+    struct set_node *next;
     struct module *module;
     int progress;
 

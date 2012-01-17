@@ -71,6 +71,7 @@ void set_clear(struct set *set);
 
 /* Functions you might use for set cleanup or compare. */
 int set_compare_charp(const void *a_, const void *b_);
+int set_compare_voidp(const void *a_, const void *b_);
 int set_compare_int(const void *a_, const void *b_);
 int set_compare_ptr(const void *a_, const void *b_);
 

@@ -214,6 +214,12 @@ int set_compare_charp(const void *a_, const void *b_)
     return strcasecmp(*a, *b);
 }
 
+int set_compare_voidp(const void *a_, const void *b_)
+{
+    void * const *a = a_, * const *b = b_;
+    return (*a > *b) ? 1 : (*a == *b) ? 0 : -1;
+}
+
 int set_compare_int(const void *a_, const void *b_)
 {
     const int *a = a_, *b = b_;

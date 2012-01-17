@@ -631,7 +631,6 @@ static void conf_set_string_list_value(struct conf_node_string_list *node, const
 
 static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *parent)
 {
-    struct conf_node_base *base;
     char *name;
     int ch;
 
@@ -666,7 +665,6 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
         }
         conf_set_string_list_value(node, &new_value);
         string_vector_clear_int(&new_value);
-        base = &node->base;
     } else if (ch == '{') {
         struct conf_node_object *node;
         char ch;
@@ -681,7 +679,6 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
             parse->curr--;
             conf_parse_entry(parse, node);
         }
-        base = &node->base;
     } else {
         char *string;
 
@@ -695,7 +692,6 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
             node = conf_parse_get_child(parent, name, CONF_STRING, sizeof(*node));
             xfree(node->value);
             node->value = string;
-            base = &node->base;
         } else {
             struct conf_node_inaddr *node;
             char *service;
@@ -707,7 +703,6 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
             xfree(node->service);
             node->hostname = string;
             node->service = service;
-            base = &node->base;
         }
     }
     ch = conf_parse_whitespace(parse);

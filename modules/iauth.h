@@ -170,14 +170,28 @@ struct iauth_request {
 
     /** Name of connection class to use. */
     char class[CLASSLEN + 1];
+
+    /** Contains submodule-specific data.
+     *
+     * No special cleanup of the data is performed.  The first element
+     * of the data must be a pointer that is unique to the submodule
+     * (e.g. to the iauth_module structure).
+     */
+    struct set data;
 };
 
 enum iauth_policies {
+    /** IAuth 'A' policy (username and password). */
     IAUTH_SEND_USER_AND_PASS,
+    /** IAuth 'R' policy (IAuth approval required). */
     IAUTH_PRIOR_APPROVAL,
+    /** IAuth 'T' policy (statistics for 'R' policy refusals). */
     IAUTH_APPROVAL_DIAGNOSTICS,
+    /** IAuth 'U' policy (nickname, confirmed username and hurry) */
     IAUTH_SEND_NICKNAME_ETC,
+    /** IAuth 'W' policy (allow IAuth extra time based on hostname). */
     IAUTH_EXTRA_TIME,
+    /** Number of supported IAuth policies. */
     IAUTH_NUM_POLICIES
 };
 

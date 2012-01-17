@@ -299,6 +299,12 @@ void iauth_accept(struct iauth_request *req)
     parse_registered(req, 0);
 }
 
+static void iauth_req_cleanup(void *ptr)
+{
+    struct iauth_request *req = ptr;
+    set_clear(&req->data);
+}
+
 static void parse_new_client(int id, int argc, char *argv[])
 {
     struct iauth_module *plugin;
@@ -317,6 +323,7 @@ static void parse_new_client(int id, int argc, char *argv[])
     req->remote_port = strtol(argv[2], NULL, 10);
     irc_pton(&req->local_addr, NULL, argv[3], 0);
     req->local_port = strtol(argv[4], NULL, 10);
+    req->data.compare = set_compare_ptr;
     set_insert(iauth_reqs, node);
 
     /* Broadcast the message. */
@@ -634,7 +641,7 @@ void module_constructor(UNUSED_ARG(const char name[]))
     tv_zero.tv_sec = 0;
     tv_zero.tv_usec = 0;
     iauth_log = log_type_register("iauth", NULL);
-    iauth_reqs = set_alloc(set_compare_int, NULL);
+    iauth_reqs = set_alloc(set_compare_int, iauth_req_cleanup);
     iauth_modules = set_alloc(set_compare_charp, NULL);
     event_once(-1, EV_TIMEOUT, iauth_startup, NULL, &tv_zero);
     iauth_in = bufferevent_new(STDIN_FILENO, iauth_read, NULL, NULL, NULL);

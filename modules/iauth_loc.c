@@ -29,13 +29,24 @@
  * a request to its configured server and places a hold on the client.
  * When a response comes back ("OK", "NO" or unlinked), it releases
  * the hold, and for "OK" responses sets the account stamp.
+ *
+ * If the "ipr" configuration value is set, this includes the client's
+ * IP address and hostname in the login message it sends.
  */
 
 #include "modules/iauth.h"
 
+struct iauth_loc_password {
+    /** Pointer to #iauth_loc. */
+    void *key;
+    /** Account name concatenated with password. */
+    char password[1];
+};
+
 static struct {
     struct conf_node_object *root;
     struct conf_node_string *server;
+    struct conf_node_string *ipr;
 } conf;
 
 static struct {
@@ -131,14 +142,55 @@ static void iauth_loc_x_unlinked(const char server[], const char routing[],
     iauth_check_request(req);
 }
 
+static void iauth_loc_send_login(struct iauth_request *req, const char password[],
+                                 struct iauth_loc_password *pw)
+{
+    /* Do we have all the information we need? */
+    if (!conf.ipr->parsed.p_boolean
+        || (BITSET_GET(req->flags, IAUTH_GOT_HOSTNAME)
+            && BITSET_GET(req->flags, IAUTH_GOT_IDENT))) {
+        char routing[IRC_NTOP_MAX + 20];
+        char address[IRC_NTOP_MAX];
+
+        irc_ntop(address, sizeof(address), &req->remote_addr);
+        snprintf(routing, sizeof(routing), "%d/%s/%hu",
+                 req->client, address, req->remote_port);
+
+        if (!conf.ipr->parsed.p_boolean)
+            iauth_x_query(conf.server->value, routing, "LOGIN %s", password);
+        else if (req->hostname[0] != '\0')
+            iauth_x_query(conf.server->value, routing, "LOGIN2 %s %s %s %s",
+                          address, req->hostname, req->username, password);
+        else
+            iauth_x_query(conf.server->value, routing, "LOGIN2 %s . %s %s",
+                          address, req->username, password);
+    } else if (!pw) {
+        /* Create a structure to record password data. */
+        size_t pwlen = strlen(password);
+        struct set_node *node = set_node_alloc(sizeof(*pw) + pwlen);
+        pw = set_node_data(node);
+        pw->key = &iauth_loc;
+        strcpy(pw->password, password);
+        set_insert(&req->data, node);
+    }
+}
+
+static void iauth_loc_got_additional(struct iauth_request *req)
+{
+    void *ptr = &iauth_loc;
+    struct iauth_loc_password *pw = set_find(&req->data, &ptr);
+    if (pw) {
+        iauth_loc_send_login(req, pw->password, pw);
+        set_remove(&req->data, &ptr, 0);
+    }
+}
+
 static void iauth_loc_password(struct iauth_request *req, const char password[])
 {
     if (strchr(password, ' ') != NULL && conf.server->value != NULL) {
-        char routing[IRC_NTOP_MAX + 20];
-        char address[IRC_NTOP_MAX];
-        irc_ntop(address, sizeof(address), &req->remote_addr);
-        snprintf(routing, sizeof(routing), "%d/%s/%hu", req->client, address, req->remote_port);
-        iauth_x_query(conf.server->value, routing, "LOGIN %s", password);
+        void *ptr = &iauth_loc;
+        struct iauth_loc_password *pw = set_find(&req->data, &ptr);
+        iauth_loc_send_login(req, password, pw);
         ++req->soft_holds;
     }
 }
@@ -147,10 +199,24 @@ static struct iauth_module iauth_loc = {
     .owner = "iauth_loc",
     .get_config = iauth_loc_get_config,
     .get_stats = iauth_loc_get_stats,
+    .got_hostname = iauth_loc_got_additional,
+    .got_ident = iauth_loc_got_additional,
     .got_x_reply = iauth_loc_x_reply,
     .got_x_unlinked = iauth_loc_x_unlinked,
+    .no_hostname = iauth_loc_got_additional,
     .password = iauth_loc_password,
 };
+
+static void iauth_loc_ipr_changed(struct conf_node_base *node)
+{
+    if (node == &conf.ipr->base)
+    {
+        if (conf.ipr->parsed.p_boolean)
+            BITSET_SET(iauth_loc.policies, IAUTH_SEND_NICKNAME_ETC);
+        else
+            BITSET_CLEAR(iauth_loc.policies, IAUTH_SEND_NICKNAME_ETC);
+    }
+}
 
 void module_constructor(UNUSED_ARG(const char name[]))
 {
@@ -158,6 +224,9 @@ void module_constructor(UNUSED_ARG(const char name[]))
     module_depends("iauth", NULL);
     conf.root = conf_register_object(NULL, "iauth_loc");
     conf.server = conf_register_string(conf.root, CONF_STRING_PLAIN, "server", NULL);
+    conf.ipr = conf_register_string(conf.root, CONF_STRING_BOOLEAN, "ipr", "false");
+    conf.ipr->base.hook = iauth_loc_ipr_changed;
+    iauth_loc_ipr_changed(&conf.ipr->base);
     BITSET_SET(iauth_loc.policies, IAUTH_SEND_USER_AND_PASS);
     BITSET_SET(iauth_loc.policies, IAUTH_PRIOR_APPROVAL);
     iauth_register_module(&iauth_loc);

@@ -39,5 +39,9 @@ logs {
 };
 
 iauth_loc {
-    "server" "channels.example.org";
+    server channels.example.org;
+    // If IPR (IP restrictions) is true, IAuth will send a command like
+    // "LOGIN2 192.168.0.1 localhost.localdomain ident user password"
+    // instead of just "LOGIN user password".
+    ipr true;
 };

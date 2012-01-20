@@ -168,10 +168,10 @@ void iauth_check_request(struct iauth_request *request)
     if (request->holds == 0
         && !BITSET_GET(request->flags, IAUTH_RESPONDED)
         && !BITSET_H_ANDNOT(iauth_flags, request->flags)) {
-        if (request->soft_holds > 0)
-            iauth_soft_done(request);
-        else
+        if (request->soft_holds == 0)
             iauth_accept(request);
+        else if (!BITSET_GET(request->flags, IAUTH_SOFT_DONE))
+            iauth_soft_done(request);
     }
 }
 

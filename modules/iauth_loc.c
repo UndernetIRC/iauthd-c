@@ -100,14 +100,14 @@ static void iauth_loc_x_reply(const char server[], const char routing[], const c
     if (0 == memcmp(reply, "OK ", 3)) {
         int ii;
 
-        --req->holds;
+        --req->soft_holds;
         for (ii = 3; (reply[ii] != ' ') && (reply[ii] != '\0') && ii < ACCOUNTLEN; ++ii)
             req->account[ii-3] = reply[ii];
         for (; ii < ACCOUNTLEN+3+1; ++ii)
             req->account[ii-3] = '\0';
         iauth_check_request(req);
     } else if (0 == memcmp(reply, "NO ", 3)) {
-        --req->holds;
+        --req->soft_holds;
         iauth_challenge(req, reply + 3);
         iauth_check_request(req);
     } else {
@@ -126,7 +126,7 @@ static void iauth_loc_x_unlinked(const char server[], const char routing[],
     if (conf.server->value == NULL || 0 != strcmp(server, conf.server->value))
         return;
 
-    --req->holds;
+    --req->soft_holds;
     iauth_challenge(req, "Login server unavailable");
     iauth_check_request(req);
 }
@@ -139,7 +139,7 @@ static void iauth_loc_password(struct iauth_request *req, const char password[])
         irc_ntop(address, sizeof(address), &req->remote_addr);
         snprintf(routing, sizeof(routing), "%d/%s/%hu", req->client, address, req->remote_port);
         iauth_x_query(conf.server->value, routing, "LOGIN %s", password);
-        ++req->holds;
+        ++req->soft_holds;
     }
 }
 

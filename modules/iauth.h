@@ -106,6 +106,8 @@ enum iauth_client_state {
 enum iauth_flags {
     /** Set when we have made a decision for this request. */
     IAUTH_RESPONDED,
+    /** Set when we have sent a "soft done" for this request. */
+    IAUTH_SOFT_DONE,
     /** Set when we get an 'N' or 'd' message. */
     IAUTH_GOT_HOSTNAME,
     /** Set when we get a 'u' message. */
@@ -132,6 +134,12 @@ struct iauth_request {
      * username, nickname and realname).
      */
     int holds;
+
+    /** Number of "soft holds" on the client.  IAuth will send a "Soft
+     * Done" message when the number of holds less than one but this
+     * is positive.
+     */
+    int soft_holds;
 
     /** Boolean flags of the request state.
      * Indexed by enum iauth_flags.
@@ -285,6 +293,7 @@ void iauth_unregister_module(struct iauth_module *plugin);
 
 /* These functions generate IAuth messages to the server. */
 void iauth_accept(struct iauth_request *req);
+void iauth_soft_done(struct iauth_request *req);
 void iauth_challenge(struct iauth_request *req, const char text[]);
 void iauth_force_username(struct iauth_request *req, const char username[]);
 void iauth_kill(struct iauth_request *req, const char reason[]);

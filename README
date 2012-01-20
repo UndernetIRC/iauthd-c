@@ -79,7 +79,7 @@ IAuth Interfaces
 ================
 
 The code in the src directory is utility code rather than relating to
-IAuth.  The IAuth-specific code is in modules/iauth.c and
+IAuth.  The IAuth-specific code is in modules/iauth_core.c and
 modules/iauth.h.  Typically, iauth modules should call
 module_depends("iauth", NULL) to indicate that they provide services
 to the iauth modules.

@@ -109,6 +109,15 @@ static void calc_iauth_flags(void)
         BITSET_OR(iauth_flags, iauth_flags, plugin->need_flags);
     }
 
+    /* Require the full set of IAuth messages we ask for. */
+    BITSET_SET(iauth_flags, IAUTH_GOT_HOSTNAME);
+    if (BITSET_GET(iauth_policies, IAUTH_SEND_USER_AND_PASS))
+        BITSET_SET(iauth_flags, IAUTH_GOT_USER_INFO);
+    if (BITSET_GET(iauth_policies, IAUTH_SEND_NICKNAME_ETC)) {
+        BITSET_SET(iauth_flags, IAUTH_GOT_NICK);
+        BITSET_SET(iauth_flags, IAUTH_GOT_IDENT);
+    }
+
     /* Clear flags that do not make sense. */
     BITSET_CLEAR(iauth_flags, IAUTH_RESPONDED);
 }
@@ -159,7 +168,10 @@ void iauth_check_request(struct iauth_request *request)
     if (request->holds == 0
         && !BITSET_GET(request->flags, IAUTH_RESPONDED)
         && !BITSET_H_ANDNOT(iauth_flags, request->flags)) {
-        iauth_accept(request);
+        if (request->soft_holds > 0)
+            iauth_soft_done(request);
+        else
+            iauth_accept(request);
     }
 }
 
@@ -297,6 +309,12 @@ void iauth_accept(struct iauth_request *req)
         iauth_send(req, "D");
     /* Notify all the modules we are done with this client. */
     parse_registered(req, 0);
+}
+
+void iauth_soft_done(struct iauth_request *req)
+{
+    BITSET_SET(req->flags, IAUTH_SOFT_DONE);
+    iauth_send(req, "d");
 }
 
 static void iauth_req_cleanup(void *ptr)
@@ -560,8 +578,10 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
         if (id == -1 || argv[0][0] == 'C')
             req = NULL;
         else if (!(req = set_find(iauth_reqs, &id))) {
-            /* XXX: Maybe log this (presumably unexpected) lookup failure? */
+            /* We don't log this because it happens during normal
+             * client disconnects.
             log_message(iauth_log, LOG_DEBUG, " .. no client found for id %d", id);
+            */
             return;
         }
 

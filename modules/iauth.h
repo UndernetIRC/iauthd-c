@@ -135,6 +135,11 @@ struct iauth_request {
      */
     int holds;
 
+    /** Timer event that fires when the IAuth request has been active
+     * for too long.
+     */
+    struct event timeout;
+
     /** Number of "soft holds" on the client.  IAuth will send a "Soft
      * Done" message when the number of holds less than one but this
      * is positive.

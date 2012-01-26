@@ -45,6 +45,12 @@ static struct iauth_flagset iauth_flags;
 /** Log for all iauth messages. */
 static struct log_type *iauth_log;
 
+/** Root of IAuth module configuation. */
+static struct conf_node_object *iauth_conf;
+
+/** Duration of the request timeout. */
+static struct conf_node_string *iauth_conf_timeout;
+
 static void parse_registered(struct iauth_request *req, int from_ircd);
 
 /** Sends a message to the IRCD related to \a req.
@@ -320,7 +326,16 @@ void iauth_soft_done(struct iauth_request *req)
 static void iauth_req_cleanup(void *ptr)
 {
     struct iauth_request *req = ptr;
+    event_del(&req->timeout);
     set_clear(&req->data);
+}
+
+static void iauth_timeout(evutil_socket_t sock, short event, void *datum)
+{
+    struct iauth_request *req = datum;
+    req->soft_holds = 0;
+    iauth_check_request(req);
+    (void)sock; (void)event;
 }
 
 static void parse_new_client(int id, int argc, char *argv[])
@@ -328,6 +343,7 @@ static void parse_new_client(int id, int argc, char *argv[])
     struct iauth_module *plugin;
     struct iauth_request *req;
     struct set_node *node;
+    struct timeval timeout;
 
     if (argc < 5)
         return;
@@ -343,6 +359,13 @@ static void parse_new_client(int id, int argc, char *argv[])
     req->local_port = strtol(argv[4], NULL, 10);
     req->data.compare = set_compare_ptr;
     set_insert(iauth_reqs, node);
+
+    /* Do we have a timeout? */
+    timeout.tv_sec = iauth_conf_timeout->parsed.p_interval;
+    timeout.tv_usec = 0;
+    evtimer_set(&req->timeout, iauth_timeout, req);
+    if (timeout.tv_sec > 0)
+        evtimer_add(&req->timeout, &timeout);
 
     /* Broadcast the message. */
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
@@ -663,6 +686,8 @@ void module_constructor(UNUSED_ARG(const char name[]))
     iauth_log = log_type_register("iauth", NULL);
     iauth_reqs = set_alloc(set_compare_int, iauth_req_cleanup);
     iauth_modules = set_alloc(set_compare_charp, NULL);
+    iauth_conf = conf_register_object(NULL, "iauth");
+    iauth_conf_timeout = conf_register_string(iauth_conf, CONF_STRING_INTERVAL, "timeout", "0");
     event_once(-1, EV_TIMEOUT, iauth_startup, NULL, &tv_zero);
     iauth_in = bufferevent_new(STDIN_FILENO, iauth_read, NULL, NULL, NULL);
     bufferevent_enable(iauth_in, EV_READ);

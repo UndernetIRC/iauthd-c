@@ -38,6 +38,18 @@ logs {
     "*.>=info" "file:iauthd-c.log";
 };
 
+iauth {
+    // This indicates the number of seconds before IAuth tries to
+    // accept a client even if some modules might not have all the
+    // data they want.  (To be precise, this many seconds after an
+    // IAuth request is created, the client will be accepted if only
+    // "soft" holds remain.)  With ircu2.10.12.15 and later, this
+    // can safely be removed; with earlier versions, that will cause
+    // Authorization Timeout rejections instead of accepting the
+    // clients.
+    timeout 30;
+};
+
 iauth_loc {
     server channels.example.org;
     // If IPR (IP restrictions) is true, IAuth will send a command like

@@ -27,8 +27,9 @@
  *
  * When a client sends "PASS :<account> <password>", this module sends
  * a request to its configured server and places a hold on the client.
- * When a response comes back ("OK", "NO" or unlinked), it releases
- * the hold, and for "OK" responses sets the account stamp.
+ * When a final response comes back ("OK", "NO" or unlinked), it
+ * releases the hold, and for "OK" responses sets the account stamp.
+ * A non-final response ("MORE") passes its message to the client.
  *
  * If the "ipr" configuration value is set, this includes the client's
  * IP address and hostname in the login message it sends.
@@ -121,6 +122,9 @@ static void iauth_loc_x_reply(const char server[], const char routing[], const c
         --req->soft_holds;
         iauth_challenge(req, reply + 3);
         iauth_check_request(req);
+    } else if (0 == memcmp(reply, "MORE ", 5)) {
+        iauth_challenge(req, reply + 5);
+        /* No need to check the request state right now. */
     } else {
         log_message(iauth_loc_log, LOG_WARNING, "Unexpected XR reply: %s", reply);
     }

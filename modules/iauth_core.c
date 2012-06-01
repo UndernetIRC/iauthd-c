@@ -357,7 +357,7 @@ static void parse_new_client(int id, int argc, char *argv[])
     req->remote_port = strtol(argv[2], NULL, 10);
     irc_pton(&req->local_addr, NULL, argv[3], 0);
     req->local_port = strtol(argv[4], NULL, 10);
-    req->data.compare = set_compare_ptr;
+    req->data.compare = set_compare_voidp;
     set_insert(iauth_reqs, node);
 
     /* Do we have a timeout? */

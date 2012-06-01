@@ -151,6 +151,7 @@ static void iauth_loc_send_login(struct iauth_request *req, const char password[
 {
     /* Do we have all the information we need? */
     if (!conf.ipr->parsed.p_boolean
+        || req->state == IAUTH_HURRY
         || (BITSET_GET(req->flags, IAUTH_GOT_HOSTNAME)
             && BITSET_GET(req->flags, IAUTH_GOT_IDENT))) {
         char routing[IRC_NTOP_MAX + 20];
@@ -162,12 +163,12 @@ static void iauth_loc_send_login(struct iauth_request *req, const char password[
 
         if (!conf.ipr->parsed.p_boolean)
             iauth_x_query(conf.server->value, routing, "LOGIN %s", password);
-        else if (req->hostname[0] != '\0')
+        else {
+            const char *host = req->hostname[0] ? req->hostname : "?";
+            const char *user = req->username[0] ? req->username : "?";
             iauth_x_query(conf.server->value, routing, "LOGIN2 %s %s %s %s",
-                          address, req->hostname, req->username, password);
-        else
-            iauth_x_query(conf.server->value, routing, "LOGIN2 %s . %s %s",
-                          address, req->username, password);
+                          address, host, user, password);
+        }
     } else if (!pw) {
         /* Create a structure to record password data. */
         size_t pwlen = strlen(password);
@@ -189,6 +190,12 @@ static void iauth_loc_got_additional(struct iauth_request *req)
     }
 }
 
+static void iauth_loc_hurry_up(struct iauth_request *req,
+                               UNUSED_ARG(const char class[]))
+{
+    iauth_loc_got_additional(req);
+}
+
 static void iauth_loc_password(struct iauth_request *req, const char password[])
 {
     if (strchr(password, ' ') != NULL && conf.server->value != NULL) {
@@ -207,6 +214,7 @@ static struct iauth_module iauth_loc = {
     .got_ident = iauth_loc_got_additional,
     .got_x_reply = iauth_loc_x_reply,
     .got_x_unlinked = iauth_loc_x_unlinked,
+    .hurry_up = iauth_loc_hurry_up,
     .no_hostname = iauth_loc_got_additional,
     .password = iauth_loc_password,
 };

@@ -59,6 +59,7 @@ struct log_destination_vtable
 };
 
 struct log_type *log_type_register(const char *name, const char *default_target);
+void log_vmessage(struct log_type *type, enum log_severity sev, const char *format, va_list args);
 void log_message(struct log_type *type, enum log_severity sev, const char *format, ...) PRINTF_LIKE(3, 4);
 
 void log_reopen(void);

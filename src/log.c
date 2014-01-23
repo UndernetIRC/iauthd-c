@@ -137,10 +137,10 @@ struct log_type *log_type_register(const char *name, const char *default_target)
     return lt;
 }
 
-void log_message(struct log_type *type, enum log_severity sev, const char *format, ...)
+void log_vmessage(struct log_type *type, enum log_severity sev, const char *format, va_list args)
 {
+    va_list args_2;
     struct char_vector cv;
-    va_list args;
     char *message, buff[1024];
     unsigned int ii, count;
     int res;
@@ -150,14 +150,11 @@ void log_message(struct log_type *type, enum log_severity sev, const char *forma
     assert(sev < LOG_NUM_SEVERITIES);
 
     /* Get the formatted string. */
-    va_start(args, format);
+    va_copy(args_2, args);
     res = vsnprintf(buff, sizeof(buff), format, args);
-    va_end(args);
     memset(&cv, 0, sizeof(cv));
     if (res < 0) {
-        va_start(args, format);
-        char_vector_append_vprintf(&cv, format, args);
-        va_end(args);
+        char_vector_append_vprintf(&cv, format, args_2);
         message = cv.vec;
     } else
         message = buff;
@@ -195,6 +192,15 @@ void log_message(struct log_type *type, enum log_severity sev, const char *forma
     /* Terminate the process if it's a fatal error. */
     if (sev == LOG_FATAL)
         _exit(1);
+}
+
+void log_message(struct log_type *type, enum log_severity sev, const char *format, ...)
+{
+    va_list args;
+
+    va_start(args, format);
+    log_vmessage(type, sev, format, args);
+    va_end(args);
 }
 
 void log_reopen(void)

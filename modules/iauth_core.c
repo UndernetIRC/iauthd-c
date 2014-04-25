@@ -51,6 +51,9 @@ static struct conf_node_object *iauth_conf;
 /** Duration of the request timeout. */
 static struct conf_node_string *iauth_conf_timeout;
 
+/** Last assigned serial number. */
+static unsigned int iauth_serial;
+
 static void parse_registered(struct iauth_request *req, int from_ircd);
 
 /** Sends a message to the IRCD related to \a req.
@@ -79,12 +82,8 @@ static void iauth_send(struct iauth_request *req, const char fmt[], ...)
 
         /* Insert the request identifier. */
         if (pos < sizeof(msg))
-        {
-            char remoteip[IRC_NTOP_MAX];
-            irc_ntop(remoteip, sizeof(remoteip), &req->remote_addr);
             pos += snprintf(msg + pos, sizeof(msg) - pos, " %d %s %u",
-                            req->client, remoteip, req->remote_port);
-        }
+                            req->client, req->text_addr, req->remote_port);
     }
 
     pos += vsnprintf(msg + pos, sizeof(msg) - pos, fmt, args);
@@ -160,6 +159,71 @@ struct iauth_request *iauth_find_request(int client_id)
     return set_find(iauth_reqs, &client_id);
 }
 
+/** Creates an iauthd-c standard routing string for a request.
+ *
+ * At the current time, the standard routing format contains the
+ * ircd-assigned client identifier, a forward slash, the client's IP
+ * address, a forward slash, and the client port number, in that
+ * order.
+ *
+ * \todo Change the format to use a hash of the client info instead
+ *
+ * \param[in] req Client request to identify.
+ * \param[out] routing Receives the routing string.
+ * \param[in] routing_len Number of bytes writable to \a routing,
+ *   including a NUL terminator.  This should be at least #ROUTINGLEN.
+ * \return Zero on success, non-zero on failure.
+ */
+int iauth_routing(const struct iauth_request *req, char routing[], size_t routing_len)
+{
+    int needed;
+
+    if (routing_len < 6)
+	return 1;
+
+    needed = snprintf(routing, routing_len, "%x_%x",
+		      req->client, req->serial);
+    if ((needed < 0) || ((size_t)needed >= routing_len)) {
+	strcpy(routing, "???"); /* length was checked above */
+	return 2;
+    }
+
+    return 0;
+}
+
+/** Looks up the request identified by \a routing, using the iauthd-c
+ * standard routing format.
+ *
+ * See iauth_routing() for a description of the standard routing
+ * string format.
+ *
+ * \param[in] routing iauthd-c standard routing string for a client.
+ * \return Pointer to the current request for that client, or NULL if
+ *   none exists.
+ */
+struct iauth_request *iauth_validate_request(const char routing[])
+{
+    struct iauth_request *req;
+    char *sep;
+    unsigned int serial;
+    int id;
+
+    /* Parse the routing tag. */
+    id = strtol(routing, &sep, 16);
+    if (sep[0] != '_')
+        return NULL;
+    serial = strtoul(sep + 1, &sep, 16);
+    if (sep[0] != '\0')
+        return NULL;
+
+    /* Look up the client and check that it is the correct one. */
+    req = set_find(iauth_reqs, &id);
+    if (!req || serial != req->serial)
+        return NULL;
+
+    return req;
+}
+
 /** Checks the state of \a request, and accepts the client if we have
  * not yet responded for the client.
  *
@@ -178,6 +242,18 @@ void iauth_check_request(struct iauth_request *request)
             iauth_accept(request);
         else if (!BITSET_GET(request->flags, IAUTH_SOFT_DONE))
             iauth_soft_done(request);
+	else
+	    log_message(iauth_log, LOG_DEBUG, " -> client %d already had soft done", request->client);
+    } else if (request->holds) {
+	log_message(iauth_log, LOG_DEBUG, " -> client %d has %d holds",
+		    request->client, request->holds);
+    } else if (BITSET_GET(request->flags, IAUTH_RESPONDED)) {
+	log_message(iauth_log, LOG_DEBUG, " -> already responded for client %d",
+		    request->client);
+    } else {
+	log_message(iauth_log, LOG_DEBUG, " -> client %d still waiting: %#x & ~%#x (plus %d soft holds)",
+		    request->client, iauth_flags.bits[0], request->flags.bits[0],
+		    request->soft_holds);
     }
 }
 
@@ -262,10 +338,8 @@ void iauth_set_hostname(struct iauth_request *req, const char hostname[])
 
 void iauth_set_ip(struct iauth_request *req, const union irc_inaddr *addr)
 {
-    char text[IRC_NTOP_MAX];
-
-    irc_ntop(text, sizeof(text), addr);
-    iauth_send(req, "I %s", text);
+    irc_ntop(req->text_addr, sizeof(req->text_addr), addr);
+    iauth_send(req, "I %s", req->text_addr);
     memcpy(&req->remote_addr, addr, sizeof(req->remote_addr));
     /* Does not change anything that affects iauth_check_request(). */
 }
@@ -352,8 +426,10 @@ static void parse_new_client(int id, int argc, char *argv[])
     node = set_node_alloc(sizeof(*req));
     req = set_node_data(node);
     req->client = id;
+    req->serial = ++iauth_serial;
     req->state = IAUTH_REGISTER;
     irc_pton(&req->remote_addr, NULL, argv[1], 0);
+    irc_ntop(req->text_addr, sizeof(req->text_addr), &req->remote_addr);
     req->remote_port = strtol(argv[2], NULL, 10);
     irc_pton(&req->local_addr, NULL, argv[3], 0);
     req->local_port = strtol(argv[4], NULL, 10);
@@ -399,8 +475,8 @@ static void parse_hostname(struct iauth_request *req, char hostname[])
     BITSET_SET(req->flags, IAUTH_GOT_HOSTNAME);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->got_hostname != NULL)
-            plugin->got_hostname(req);
+        if (plugin->field_change != NULL)
+	    plugin->field_change(req, IAUTH_GOT_HOSTNAME);
     }
     iauth_check_request(req);
 }
@@ -413,8 +489,8 @@ static void parse_no_hostname(struct iauth_request *req)
     BITSET_SET(req->flags, IAUTH_GOT_HOSTNAME);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->no_hostname != NULL)
-            plugin->no_hostname(req);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_HOSTNAME);
     }
     iauth_check_request(req);
 }
@@ -424,6 +500,7 @@ static void parse_password(struct iauth_request *req, char password[])
     struct iauth_module *plugin;
     struct set_node *node;
 
+    BITSET_SET(req->flags, IAUTH_GOT_PASSWORD);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (plugin->password != NULL)
@@ -438,8 +515,11 @@ static void parse_user_info(struct iauth_request *req, int argc, char *argv[])
 
     if (argc < 5)
         return;
+    strncpy(req->cli_username, argv[1], USERLEN);
     strncpy(req->realname, argv[4], REALLEN);
     BITSET_SET(req->flags, IAUTH_GOT_USER_INFO);
+    if (BITSET_GET(req->flags, IAUTH_EMPTY_IDENT))
+	BITSET_SET(req->flags, IAUTH_GOT_IDENT);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (plugin->user_info != NULL)
@@ -453,12 +533,18 @@ static void parse_ident(struct iauth_request *req, char ident[])
     struct iauth_module *plugin;
     struct set_node *node;
 
-    strncpy(req->username, ident, USERLEN);
-    BITSET_SET(req->flags, IAUTH_GOT_IDENT);
+    if (ident) {
+	strncpy(req->auth_username, ident, USERLEN);
+	BITSET_SET(req->flags, IAUTH_GOT_IDENT);
+    } else if (req->cli_username[0] != '\0')
+	BITSET_SET(req->flags, IAUTH_GOT_IDENT);
+    else
+	BITSET_SET(req->flags, IAUTH_EMPTY_IDENT);
+
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->got_ident != NULL)
-            plugin->got_ident(req);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_IDENT);
     }
     iauth_check_request(req);
 }
@@ -472,8 +558,8 @@ static void parse_nick(struct iauth_request *req, char nick[])
     BITSET_SET(req->flags, IAUTH_GOT_NICK);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->got_nick != NULL)
-            plugin->got_nick(req);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_NICK);
     }
     iauth_check_request(req);
 }
@@ -485,11 +571,13 @@ static void parse_hurry_up(struct iauth_request *req, char class[])
 
     if (req->class == '\0')
         strncpy(req->class, class, CLASSLEN);
+    BITSET_OR(req->flags, req->flags, iauth_flags);
+    BITSET_SET(req->flags, IAUTH_GOT_HURRY_UP);
     req->state = IAUTH_HURRY;
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->hurry_up != NULL)
-            plugin->hurry_up(req, class);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_HURRY_UP);
     }
     iauth_check_request(req);
 }
@@ -517,8 +605,8 @@ static void parse_error(struct iauth_request *req, int argc, char *argv[])
         return;
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->got_error != NULL)
-            plugin->got_error(req, argv[1], argv[2]);
+        if (plugin->error != NULL)
+            plugin->error(req, argv[1], argv[2]);
     }
 }
 
@@ -533,8 +621,8 @@ static void parse_server_info(int argc, char *argv[])
     capacity = strtol(argv[2], NULL, 10);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->got_server_info != NULL)
-            plugin->got_server_info(argv[1], capacity);
+        if (plugin->server_info != NULL)
+            plugin->server_info(argv[1], capacity);
     }
 }
 
@@ -547,8 +635,8 @@ static void parse_x_reply(int argc, char *argv[])
         return;
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->got_x_reply != NULL)
-            plugin->got_x_reply(argv[1], argv[2], argv[3]);
+        if (plugin->x_reply != NULL)
+            plugin->x_reply(argv[1], argv[2], argv[3]);
     }
 }
 
@@ -561,8 +649,8 @@ static void parse_x_unlinked(int argc, char *argv[])
         return;
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
-        if (plugin->got_x_unlinked != NULL)
-            plugin->got_x_unlinked(argv[1], argv[2], argv[3]);
+        if (plugin->x_unlinked != NULL)
+            plugin->x_unlinked(argv[1], argv[2], argv[3]);
     }
 }
 
@@ -582,7 +670,7 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
         id = strtol(line, &sep, 10);
 
         /* Parse the remaining arguments. */
-        for (argc = 0; argc < ARRAY_LENGTH(argv); ++argc) {
+        for (argc = 0; argc < ARRAY_LENGTH(argv); ) {
             for (; isspace(*sep); ++sep) {}
             if (*sep == '\0')
                 break;
@@ -590,8 +678,10 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
                 argv[argc++] = sep + 1;
                 break;
             }
-            argv[argc] = sep;
+            argv[argc++] = sep;
             for (; (*sep != '\0') && !isspace(*sep); ++sep) {}
+	    if (*sep == '\0')
+		break;
             *sep++ = '\0';
         }
         if (argc < ARRAY_LENGTH(argv))
@@ -663,6 +753,8 @@ static void iauth_startup(UNUSED_ARG(int fd), UNUSED_ARG(short evt), UNUSED_ARG(
     char policies[64] = "ARTUW";
     int pos;
     int ii;
+
+    iauth_send(NULL, "V %s %s", PACKAGE_NAME, iauthd_version);
 
     calc_iauth_flags();
 

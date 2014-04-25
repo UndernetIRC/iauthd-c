@@ -82,6 +82,28 @@ unsigned int bitset_count(const bitset_page_t *in, unsigned int count)
     return accum;
 }
 
+void bitset_clear(bitset_page_t *set, ...)
+{
+    va_list args;
+    int bit;
+
+    va_start(args, set);
+    while ((bit = va_arg(args, int)) >= 0)
+	set[BITSET_WORD_NUM(bit)] &= ~BITSET_WORD_MASK(bit);
+    va_end(args);
+}
+
+void bitset_set(bitset_page_t *set, ...)
+{
+    va_list args;
+    int bit;
+
+    va_start(args, set);
+    while ((bit = va_arg(args, int)) >= 0)
+	set[BITSET_WORD_NUM(bit)] |= BITSET_WORD_MASK(bit);
+    va_end(args);
+}
+
 struct dyn_bitset *dyn_bitset_alloc(unsigned int len)
 {
     struct dyn_bitset *dbs;

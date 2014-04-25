@@ -14,9 +14,9 @@
  */
 
 core {
-    // You may want a library-path line if your run srvx from the build tree.
+    // You may want a library-path line if you run iauthd-c from a build tree.
     // library_path ( "./modules" );
-    modules ( iauth_loc );
+    modules ( iauth_xquery );
 };
 
 logs {
@@ -50,10 +50,15 @@ iauth {
     timeout 30;
 };
 
-iauth_loc {
-    server channels.example.org;
-    // If IPR (IP restrictions) is true, IAuth will send a command like
-    // "LOGIN2 192.168.0.1 localhost.localdomain ident user password"
-    // instead of just "LOGIN user password".
-    ipr true;
+iauth_xquery {
+    // Each "key" is an XQUERY-compatible server name; its value is
+    // the XQUERY protocol to use with it.  The following protocols
+    // are supported (see modules/iauth_xquery.c for details about
+    // the exchanges):
+    //  - login
+    //  - login-ipr
+    //  - dronecheck
+    //  - combined (almost like dronecheck plus login-ipr)
+    channels.example.org login-ipr;
+    botcheck.example.org dronecheck;
 };

@@ -94,6 +94,9 @@ unsigned int irc_check_mask(const irc_inaddr *check, const irc_inaddr *mask, uns
 /** Number of bytes allowed in the connection class. */
 #define CLASSLEN 63
 
+/** Maximum length of an iauthd-c standard routing string. */
+#define ROUTINGLEN (IRC_NTOP_MAX + 20)
+
 /** Possible states for a client (with respect to IAuth). */
 enum iauth_client_state {
     IAUTH_REGISTER,
@@ -116,6 +119,13 @@ enum iauth_flags {
     IAUTH_GOT_NICK,
     /** Set when we get a 'U' message. */
     IAUTH_GOT_USER_INFO,
+    /** Set when we get a 'P' message. */
+    IAUTH_GOT_PASSWORD,
+    /** Set when we get a 'H' message. */
+    IAUTH_GOT_HURRY_UP,
+    /** Set when we get blank 'u' message, but have not gotten 'U'. */
+    IAUTH_EMPTY_IDENT,
+    /** Sentinel/count value for IAuth flags. */
     IAUTH_NUM_FLAGS
 };
 
@@ -127,6 +137,14 @@ DECLARE_BITSET(iauth_flagset, IAUTH_NUM_FLAGS);
 struct iauth_request {
     /** IAuth identifier for the client. */
     int client;
+
+    /** IAuth-assigned serial number for client.
+     *
+     * #client is assigned by the IRC server, and may be reused while
+     * we have requests pending.  This lets us distinguish responses
+     * for clients that have gone away from those for current clients.
+     */
+    unsigned int serial;
 
     /** Number of "holds" on the client.  IAuth will send a "Done
      * Checking" message if the holds is less than one and it has
@@ -146,7 +164,8 @@ struct iauth_request {
      */
     int soft_holds;
 
-    /** Boolean flags of the request state.
+    /** Boolean flags of which events have occurred for the client.
+     * This includes indications of which fields are set.
      * Indexed by enum iauth_flags.
      */
     struct iauth_flagset flags;
@@ -169,8 +188,11 @@ struct iauth_request {
     /** DNS host name for the client. */
     char hostname[HOSTLEN + 1];
 
-    /** Raw ident result for the client. */
-    char username[USERLEN + 1];
+    /** Client-provided user name for the client. */
+    char cli_username[USERLEN + 1];
+
+    /** Raw ident/authd result for the client. */
+    char auth_username[USERLEN + 1];
 
     /** Client's requested nickname. */
     char nickname[NICKLEN + 1];
@@ -184,11 +206,14 @@ struct iauth_request {
     /** Name of connection class to use. */
     char class[CLASSLEN + 1];
 
+    /** Text form of #remote_addr. */
+    char text_addr[IRC_NTOP_MAX];
+
     /** Contains submodule-specific data.
      *
      * No special cleanup of the data is performed.  The first element
      * of the data must be a pointer that is unique to the submodule
-     * (e.g. to the iauth_module structure).
+     * (e.g. to the submodule's iauth_module structure).
      */
     struct set data;
 };
@@ -239,57 +264,62 @@ struct iauth_module {
 
     /** Handler function for disconnected clients (ircd 'D' message). */
     void (*disconnect)(struct iauth_request *req);
+
+    /** Handler function for errors (ircd 'E' message).  The request
+     * pointer may be null if the message is not associated with any
+     * client.
+     */
+    void (*error)(struct iauth_request *req, const char type[], const char info[]);
+
+    /** Handler for simple field changes.
+     *
+     * In particular, \a flag gets #IAUTH_GOT_HOSTNAME for a 'N' or 'd'
+     * message, #IAUTH_GOT_IDENT for a 'u' message, #IAUTH_GOT_NICK for
+     * a 'n' message, and #IAUTH_GOT_HURRY_UP for an 'H' message.
+     */
+    void (*field_change)(struct iauth_request *req, enum iauth_flags flag);
+
     /** Handler function to request configuration.  The module should
      * report them by calling iauth_report_config().
      */
     void (*get_config)(void);
+
     /** Handler function to request statistics.  The module should
      * report them by calling iauth_report_stats().
      */
     void (*get_stats)(void);
-    /** Handler function for errors (ircd 'E' message).  The request
-     * may be null if the message is not associated with any client.
+
+    /** Handler function for new clients (ircd 'C' message). */
+    void (*new_client)(struct iauth_request *req);
+
+    /** Handler function for client passwords (ircd 'P' message). */
+    void (*password)(struct iauth_request *req, const char password[]);
+
+    /** Handler function for a registered client (ircd 'T' message),
+     * or after IAuth accepts the client.
+     *
+     * A backend should only need to hook this event if it needs more
+     * cleanup than \a set_clear(&req->data) .
      */
-    void (*got_error)(struct iauth_request *req, const char type[], const char info[]);
-    /** Handler function for client hostnames (ircd 'N' message).
-     * The new hostname is stored in \a req->hostname before entry.
-     */
-    void (*got_hostname)(struct iauth_request *req);
-    /** Handler function for ident responses (ircd 'u' message).
-     * The username is stored in \a req->username before entry.
-     */
-    void (*got_ident)(struct iauth_request *req);
-    /** Handler function for client nicknames (ircd 'n' message).
-     * The nickname is stored in \a req->nickname before entry.
-     */
-    void (*got_nick)(struct iauth_request *req);
+    void (*registered)(struct iauth_request *req, int from_ircd);
+
     /** Handler function for server info (ircd 'M' message).
      * Capacity will be -1 if the server did not send it.
      */
-    void (*got_server_info)(const char server[], int capacity);
-    /** Handler function for an extension query reply. */
-    void (*got_x_reply)(const char server[], const char routing[], const char reply[]);
-    /** Handler function for the extension server not being linked. */
-    void (*got_x_unlinked)(const char server[], const char routing[], const char message[]);
-    /** Handler function to hurry up (ircd 'H' message). */
-    void (*hurry_up)(struct iauth_request *req, const char class[]);
-    /** Handler function for new clients (ircd 'C' message). */
-    void (*new_client)(struct iauth_request *req);
-    /** Handler function for hostname timeouts (ircd 'd' message).
-     * \a req->hostname is cleared before entry.
-     */
-    void (*no_hostname)(struct iauth_request *req);
-    /** Handler function for client passwords (ircd 'P' message). */
-    void (*password)(struct iauth_request *req, const char password[]);
-    /** Handler function for a registered client (ircd 'T' message),
-     * or after IAuth accepts the client.
-     */
-    void (*registered)(struct iauth_request *req, int from_ircd);
+    void (*server_info)(const char server[], int capacity);
+
     /** Handler function for client user info (ircd 'U' message).
+     *
      * The client user info (if any) is stored in \a req->realname
-     * before entry.
+     * before calling this function.
      */
     void (*user_info)(struct iauth_request *req, const char username[], const char hostname[], const char server[]);
+
+    /** Handler function for an extension query reply. */
+    void (*x_reply)(const char server[], const char routing[], const char reply[]);
+
+    /** Handler function for the extension server not being linked. */
+    void (*x_unlinked)(const char server[], const char routing[], const char message[]);
 };
 
 /* These functions are used to (un-)register IAuth decision modules. */
@@ -312,10 +342,12 @@ void iauth_set_ip(struct iauth_request *req, const union irc_inaddr *addr);
 void iauth_trust_username(struct iauth_request *req, const char username[]);
 void iauth_user_mode(struct iauth_request *req, const char modes[]);
 void iauth_weak_username(struct iauth_request *req, const char username[]);
-void iauth_x_query(const char server[], const char routing[], const char fmt[], ...);
+void iauth_x_query(const char server[], const char routing[], const char fmt[], ...) PRINTF_LIKE(3, 4);
 
-/* Asynchronous event handlers can look up requests with this function. */
+/* Asynchronous event handlers can look up requests with these functions. */
 struct iauth_request *iauth_find_request(int client_id);
+int iauth_routing(const struct iauth_request *req, char routing[], size_t routing_len);
+struct iauth_request *iauth_validate_request(const char routing[]);
 
 /* Asynchronous event handlers that directly change request fields
  * should call this function when they are done.  (It is also called

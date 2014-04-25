@@ -134,9 +134,9 @@ static unsigned int irc_pton_ip4(const char *input, unsigned int *pbits,
         }
         break;
     case '/':
-        if (!pbits)
-            return allow_trailing ? pos : 0;
-        else if (!isdigit(input[pos + 1]))
+        if (!pbits && allow_trailing)
+            goto out;
+        else if (!pbits || !isdigit(input[pos + 1]))
             return 0;
         for (bits = 0; isdigit(input[++pos]); )
             bits = bits * 10 + input[pos] - '0';
@@ -218,12 +218,11 @@ unsigned int irc_pton(irc_inaddr *addr, unsigned int *bits, const char *input, i
         }
         case '/':
             addr->in6[ii++] = htons(part);
-            if (!bits) {
+            if (!bits || !isdigit(input[pos + 1])) {
                 if (allow_trailing)
                     goto finish;
                 return 0;
-            } else if (!isdigit(input[pos + 1]))
-                return 0;
+            }
             for (part = 0; isdigit(input[++pos]); )
                 part = part * 10 + input[pos] - '0';
             if (part > 128)
@@ -266,11 +265,11 @@ unsigned int irc_pton(irc_inaddr *addr, unsigned int *bits, const char *input, i
         }
     } else if (input[pos] == '*') {
         while (input[++pos] == '*') ;
-        if (input[pos] != '\0')
-            return 0;
         if (bits)
             *bits = 0;
     }
+    if (input[pos] != '\0' && !allow_trailing)
+        return 0;
     return pos;
 }
 

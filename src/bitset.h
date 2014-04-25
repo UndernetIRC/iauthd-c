@@ -44,11 +44,15 @@ typedef unsigned int bitset_page_t;
 #define BITSET_OR(OUT, IN1, IN2) bitset_or((OUT).bits, (IN1).bits, (IN2).bits, ARRAY_LENGTH((OUT).bits))
 #define BITSET_COUNT(SET) bitset_count((SET).bits, ARRAY_LENGTH((SET).bits))
 #define BITSET_H_ANDNOT(IN1, IN2) bitset_h_andnot((IN1).bits, (IN2).bits, ARRAY_LENGTH((IN1).bits))
+#define BITSET_MULTI_CLEAR(SET, ...) bitset_clear((SET).bits, __VA_ARGS__, -1)
+#define BITSET_MULTI_SET(SET, ...) bitset_set((SET).bits, __VA_ARGS__, -1)
 
 int bitset_and(bitset_page_t *out, const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count);
 int bitset_or(bitset_page_t *out, const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count);
 int bitset_h_andnot(const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count);
 unsigned int bitset_count(const bitset_page_t *in, unsigned int count);
+void bitset_clear(bitset_page_t *set, ...);
+void bitset_set(bitset_page_t *set, ...);
 
 struct dyn_bitset {
     bitset_page_t *bits;

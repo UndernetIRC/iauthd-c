@@ -170,9 +170,8 @@ void log_vmessage(struct log_type *type, enum log_severity sev, const char *form
     }
 
     /* Also print to stdout if appropriate. */
-    if (((log_verbosity > 1)
-         || ((log_verbosity == 1) && (sev >= LOG_WARNING)))
-        && count) {
+    if ((log_verbosity > 1)
+	|| ((log_verbosity == 1) && (sev >= LOG_WARNING))) {
         char ts[32];
 
         if (conf.verbose_timestamp->parsed.p_boolean) {

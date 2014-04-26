@@ -15,7 +15,8 @@
 
 core {
     // You may want a library-path line if you run iauthd-c from a build tree.
-    // library_path ( "./modules" );
+    // The default is <PREFIX>/lib/iauthd-c .
+    // library_path ( "/home/myuser/iauthd-c/modules/.libs" );
     modules ( iauth_xquery );
 };
 

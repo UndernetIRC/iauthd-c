@@ -367,9 +367,9 @@ static void iauth_xquery_check(struct iauth_request *req,
 	if (srv->type == LOGIN || srv->type == COMBINED)
 	    iauth_x_query(srv->name, routing, "LOGIN %s", cli->password);
 	else if (srv->type == LOGIN_IPR)
-	    iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s %s",
-			  req->text_addr, req->hostname, req->realname,
-			  cli->password);
+	    iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s %s %s",
+			  req->text_addr, req->hostname, username,
+			  req->realname, cli->password);
 
 	srv->queries++;
 	srv->refs++;

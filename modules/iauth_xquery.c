@@ -320,6 +320,7 @@ static void iauth_xquery_check(struct iauth_request *req,
 {
     struct iauth_xquery_client *cli;
     struct iauth_xquery_service *srv;
+    const char *hostname;
     void *ptr;
     unsigned int ii;
     char routing[ROUTINGLEN];
@@ -358,18 +359,20 @@ static void iauth_xquery_check(struct iauth_request *req,
 	    }
 	}
 
+	hostname = req->hostname[0] ? req->hostname : req->text_addr;
+
 	if (srv->type == DRONECHECK || srv->type == COMBINED)
 	    iauth_x_query(srv->name, routing,
 			  "CHECK %s %s %s %s :%s",
 			  req->nickname, username, req->text_addr,
-			  req->hostname, req->realname);
+			  hostname, req->realname);
 
 	if (srv->type == LOGIN || srv->type == COMBINED)
 	    iauth_x_query(srv->name, routing, "LOGIN %s", cli->password);
 	else if (srv->type == LOGIN_IPR)
-	    iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s %s %s",
-			  req->text_addr, req->hostname, username,
-			  req->realname, cli->password);
+	    iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s %s",
+			  req->text_addr, hostname, username,
+			  cli->password);
 
 	srv->queries++;
 	srv->refs++;

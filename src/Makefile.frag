@@ -56,4 +56,5 @@ src_iauthd_c_SOURCES = \
 	src/set.c src/set.h \
 	src/vector.h
 
+src_iauthd_c_LDADD = $(LIBEVENT_LIBS)
 src_iauthd_c_LDFLAGS = -export-dynamic

@@ -15,11 +15,13 @@ The continue with the installation instructions below.
 Building From a Source Distribution
 -----------------------------------
 
-If necessary, install libevent
-(http://www.monkey.org/~provos/libevent/).  If this is available
-pre-packaged your operating system, using that package is recommended.
-For example, under Ubuntu (at least since dapper), you can run "sudo
-apt-get install libevent-dev" to install the necessary files.
+If your system is missing them, install libevent
+(http://www.monkey.org/~provos/libevent/) and/or pkg-config
+(http://www.freedesktop.org/wiki/Software/pkg-config/).  If these are
+available pre-packaged your operating system, using those packages is
+recommended.  For example, under Ubuntu (at least since dapper), you
+can run "sudo apt-get install libevent-dev pkg-config" to install the
+necessary files.  libevent2's compatibility interface can be used.
 
 Run "./configure && make && sudo make install" to install the package
 under /usr/local.  The "configure" script takes a number of optional

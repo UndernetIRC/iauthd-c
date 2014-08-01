@@ -54,7 +54,7 @@ AM_CONDITIONAL(HAS_GIT, test z$GIT != z)
 dnl Check libraries.
 AC_CHECK_LIB(dl, dlopen)
 AC_CHECK_LIB(socket, socket)
-AC_CHECK_LIB(event, event_dispatch)
+PKG_CHECK_MODULES(LIBEVENT, libevent)
 
 dnl More detailed system runtime feature checks.
 AC_CHECK_HEADERS([arpa/inet.h dirent.h fcntl.h inttypes.h netdb.h netinet/in.h regex.h stddef.h stdint.h sys/epoll.h sys/select.h sys/socket.h sys/stat.h sys/timeb.h sys/times.h sys/types.h sys/wait.h unistd.h])
@@ -107,6 +107,7 @@ Linux) STRICT_CFLAGS="-W -Wall -Werror" ;;
 *) STRICT_CFLAGS="-W -Wall" ;;
 esac
 
+CFLAGS="${CFLAGS} \$(LIBEVENT_CFLAGS)"
 AC_SUBST(STRICT_CFLAGS)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

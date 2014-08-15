@@ -1093,10 +1093,10 @@ static void sar_register_helper(struct sar_family_helper *helper)
     sar_first_helper = helper;
 }
 
-static unsigned int sar_addrlen(const struct sockaddr *sa, UNUSED_ARG(unsigned int size))
+static unsigned int sar_addrlen(unsigned short family, UNUSED_ARG(unsigned int size))
 {
-    return sa->sa_family <= MAX_FAMILY && sar_helpers[sa->sa_family]
-        ? sar_helpers[sa->sa_family]->socklen : 0;
+    return family <= MAX_FAMILY && sar_helpers[family]
+        ? sar_helpers[family]->socklen : 0;
 }
 
 struct sar_getaddr_state {
@@ -1344,7 +1344,7 @@ struct sar_request *sar_getaddr(const char *node, const char *service, const str
 
         /* we have a valid address; use it */
         sar_set_port((struct sockaddr*)&ss, sizeof(ss), portnum);
-        hints.ai_addrlen = sar_addrlen((struct sockaddr*)&ss, sizeof(ss));
+        hints.ai_addrlen = sar_addrlen(ss.ss_family, sizeof(ss));
         if (!hints.ai_addrlen) {
             cb(cb_ctx, NULL, SAI_FAMILY);
             return NULL;

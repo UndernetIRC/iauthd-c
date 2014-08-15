@@ -1,9 +1,24 @@
+.deps/
+.dirstamp
+.libs/
+# /modules and /tests both contain *.la and *.lo files.
+*.la
+*.lo
+
 /autoconf/
+/autoconf.h
 /autom4te.cache/
 /aclocal.m4
 /autoconf.h.in
+/config.log
+/config.status
 /configure
+/libtool
+/Makefile
 /Makefile.in
+/src/*.o
+/src/iauthd-c
+/stamp-h1
 
 # Please name your build and other local trees like this.
 /+*/

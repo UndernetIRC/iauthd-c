@@ -23,7 +23,7 @@
 # SOFTWARE.
 
 dnl General initialization.
-AC_PREREQ([2.67])
+AC_PREREQ([2.63])
 AC_INIT([iauthd-c], [0.1], [coder-com@undernet.org])
 AC_CONFIG_AUX_DIR([autoconf])
 AC_CONFIG_MACRO_DIR([autoconf])
@@ -54,7 +54,10 @@ AM_CONDITIONAL(HAS_GIT, test z$GIT != z)
 dnl Check libraries.
 AC_CHECK_LIB(dl, dlopen)
 AC_CHECK_LIB(socket, socket)
-PKG_CHECK_MODULES(LIBEVENT, libevent)
+AC_CHECK_LIB(event, event_dispatch,, AC_MSG_ERROR(
+[libevent or libevent2 must be installed to build iauthd-c.]))
+AC_CHECK_TYPE(evutil_socket_t,
+	AC_DEFINE(HAVE_EVUTIL_SOCKET_T, 1, [Define if <evutil.h> defines evutil_socket_t]),, [#include <evutil.h>])
 
 dnl More detailed system runtime feature checks.
 AC_CHECK_HEADERS([arpa/inet.h dirent.h fcntl.h inttypes.h netdb.h netinet/in.h regex.h stddef.h stdint.h sys/epoll.h sys/select.h sys/socket.h sys/stat.h sys/timeb.h sys/times.h sys/types.h sys/wait.h unistd.h])

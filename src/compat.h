@@ -146,4 +146,9 @@ size_t strlcpy(char *out, const char *in, size_t len);
 # define UNUSED_ARG(ARG) ARG
 #endif
 
+#if !defined(HAVE_EVUTIL_SOCKET_T)
+/* libevent1 needs this to be int; libevent2 uses intptr_t on Windows. */
+typedef int evutil_socket_t;
+#endif
+
 #endif /* !defined(COMPAT_H_6f7b39aa_9c51_4b5a_8169_4e145da0e027) */

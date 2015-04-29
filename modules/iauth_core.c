@@ -375,9 +375,22 @@ void iauth_kill(struct iauth_request *req, const char reason[])
     parse_registered(req, 0);
 }
 
+static void notify_pre_registered(struct iauth_request *req)
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->pre_registered != NULL)
+            plugin->pre_registered(req);
+    }
+}
+
 void iauth_accept(struct iauth_request *req)
 {
     assert(!BITSET_GET(req->flags, IAUTH_RESPONDED));
+    notify_pre_registered(req);
     BITSET_SET(req->flags, IAUTH_RESPONDED);
     if (req->account[0] != '\0' && req->class[0] != '\0')
         iauth_send(req, "R %s %s", req->account, req->class);

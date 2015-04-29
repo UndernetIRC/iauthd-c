@@ -295,6 +295,9 @@ struct iauth_module {
     /** Handler function for client passwords (ircd 'P' message). */
     void (*password)(struct iauth_request *req, const char password[]);
 
+    /** Handler function for just before IAuth accepts the client. */
+    void (*pre_registered)(struct iauth_request *req);
+
     /** Handler function for a registered client (ircd 'T' message),
      * or after IAuth accepts the client.
      *

@@ -334,7 +334,7 @@ static int log_parse_type_sevset(struct log_type **type, struct severity_bitset 
 
     str = xstrdup(str_);
     *type = NULL;
-    BITSET_ZERO(*sevset, LOG_NUM_SEVERITIES);
+    BITSET_ZERO(*sevset);
 
     /* Split off and parse the log type name. */
     if (!(sep = strchr(str, '.'))) {

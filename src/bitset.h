@@ -38,7 +38,7 @@ typedef unsigned int bitset_page_t;
 #define BITSET_GET(SET, NN) ((SET).bits[BITSET_WORD_NUM(NN)] & BITSET_WORD_MASK(NN))
 #define BITSET_SET(SET, NN) ((SET).bits[BITSET_WORD_NUM(NN)] |= BITSET_WORD_MASK(NN))
 #define BITSET_CLEAR(SET, NN) ((SET).bits[BITSET_WORD_NUM(NN)] &= ~BITSET_WORD_MASK(NN))
-#define BITSET_ZERO(SET, NN) memset((SET).bits, 0, ((NN + BITSET_BITS_PER_WORD - 1) / BITSET_BITS_PER_WORD) * sizeof(bitset_page_t))
+#define BITSET_ZERO(SET) memset((SET).bits, 0, sizeof((SET).bits))
 #define BITSET_COPY(OUT, IN) memcpy((OUT).bits, (IN).bits, sizeof((OUT).bits))
 #define BITSET_AND(OUT, IN1, IN2) bitset_and((OUT).bits, (IN1).bits, (IN2).bits, ARRAY_LENGTH((OUT).bits))
 #define BITSET_OR(OUT, IN1, IN2) bitset_or((OUT).bits, (IN1).bits, (IN2).bits, ARRAY_LENGTH((OUT).bits))

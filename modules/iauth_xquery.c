@@ -40,7 +40,19 @@
  * response from each service ("OK", "NO" or unlinked), it releases
  * the hold, and performs other command-specific processing.
  *
+ * A PASS from the client is only processed if it looks like:
+ *  PASS :<mode> <accountname> <password>
+ * where <mode> matches the regular expression ([+-][x!]*)+.  If the
+ * "net effect" of <mode> is to include +x, this module sends a +x
+ * user mode to ircd for the client; if the net effect of <mode>
+ * includes +!, this module will only accept the client after
+ * assigning an account stamp for them.  The +! modifier allows the
+ * user to ensure that their non-masked hostname is not visible to
+ * other (non-oper) clients.
+ *
  * The XREPLY responses that this module recognizes are:
+ *  AGAIN <text>
+ *   - Passes <text> to the IRC client as an error message
  *  MORE <text>
  *   - Passes <text> to the IRC client as a challenge
  *  NO <message>
@@ -75,9 +87,23 @@
 
 #include "modules/iauth.h"
 
+enum iauth_xquery_mode {
+    /** +x user mode: mask real hostname using account name */
+    IAUTH_XQUERY_HIDDEN_HOST,
+    /** +! pseudo-mode: require account stamp for approval */
+    IAUTH_XQUERY_HIDDEN_ONLY,
+    /** Number of iauth_xquery modes. */
+    IAUTH_XQUERY_NUM_MODES
+};
+
+DECLARE_BITSET(iauth_xquery_modes, IAUTH_XQUERY_NUM_MODES);
+
 struct iauth_xquery_client {
     /** Pointer to #iauth_xquery. */
     void *key;
+
+    /** Modes that this user has selected. */
+    struct iauth_xquery_modes modes;
 
     /** Bitmask of services this client has been reported to. */
     uint32_t sent_mask;
@@ -272,6 +298,8 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
 		   || (srv->type == LOGIN_IPR)
 		   || (srv->type == COMBINED)) {
 	    iauth_xquery_set_account(req, reply + 3);
+	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
+		req->holds--;
 	    /* TODO: maybe count clients who get account stamps *and*
 	     * NO responses (this would require different refcounting
 	     * on NO responses).
@@ -286,6 +314,8 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
 
 	if (cli->ref_mask == 0) {
 	    --req->soft_holds;
+	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST))
+		iauth_user_mode(req, "+x");
 	    iauth_check_request(req);
 	}
     } else if (0 == memcmp(reply, "NO ", 3)) {
@@ -293,6 +323,11 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
 	if (req->account[0] != '\0')
 	    srv->bad_acct++;
 	iauth_kill(req, reply + 3);
+    } else if (0 == memcmp(reply, "AGAIN ", 6)) {
+        iauth_challenge(req, reply + 6);
+    } else if (0 == memcmp(reply, "MORE ", 5)) {
+        cli->more_mask |= 1u << ii;
+        iauth_challenge(req, reply + 5);
     } else {
         log_message(iauth_xquery_log, LOG_WARNING, "Unexpected XR reply: %s", reply);
     }
@@ -336,12 +371,14 @@ static void iauth_xquery_check(struct iauth_request *req,
     routing[0] = '\0';
     username[0] = '\0';
     for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	if (cli->sent_mask & (1u << ii))
-	    continue; /* already asked this server */
-
 	srv = iauth_xquery_services.vec[ii];
 	if (!srv || !srv->configured)
 	    continue; /* empty or disabled server slot */
+
+	if ((cli->sent_mask & (1u << ii))
+            && ((flag != IAUTH_GOT_PASSWORD)
+                || (srv->type == DRONECHECK)))
+	    continue; /* already asked this server */
 
 	if (BITSET_H_ANDNOT(iauth_xquery_flags[srv->type], req->flags))
 	    continue; /* missing necessary information */
@@ -383,6 +420,69 @@ static void iauth_xquery_check(struct iauth_request *req,
     }
 }
 
+static void iauth_xquery_check_password(struct iauth_request *req,
+                                        struct iauth_xquery_client *cli,
+                                        const char password[])
+{
+    struct iauth_xquery_modes m_set;
+    struct iauth_xquery_modes m_clr;
+    const char *pw = password;
+    int was_hidden_only;
+    int is_hidden_only;
+    int no_account;
+    int set = 0;
+
+    BITSET_ZERO(m_set);
+    BITSET_ZERO(m_clr);
+
+    /* Parse the <mode> part of 'password'. */
+    if ((*pw != '-') && (*pw != '+'))
+	return;
+    while (*pw != ' ') {
+	switch (*pw++) {
+	case '+': set = 1; break;
+	case '-': set = 0; break;
+
+#define MODE(VALUE) do {                                \
+                if (set) {                              \
+                    BITSET_SET(m_set, (VALUE));         \
+                    BITSET_CLEAR(m_clr, (VALUE));       \
+                } else {                                \
+                    BITSET_CLEAR(m_set, (VALUE));       \
+                    BITSET_SET(m_clr, (VALUE));         \
+                }                                       \
+	    } while(0)
+	case 'x': MODE(IAUTH_XQUERY_HIDDEN_HOST); break;
+	case '!': MODE(IAUTH_XQUERY_HIDDEN_ONLY); break;
+#undef MODE
+	}
+    }
+
+    /* Skip any spaces. */
+    while (*pw == ' ') pw++;
+
+    /* Check that there is a separation between <accountname> and
+     * <password>.
+     */
+    if (!strchr(pw, ' '))
+	return;
+
+    /* Update the client's requested modes. */
+    was_hidden_only = BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY);
+    BITSET_ANDNOT(cli->modes, cli->modes, m_clr);
+    BITSET_OR(cli->modes, cli->modes, m_set);
+    is_hidden_only = BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY);
+    no_account = req->account[0] == '\0';
+    if (is_hidden_only && !was_hidden_only && no_account)
+	req->holds++;
+    else if (!is_hidden_only && was_hidden_only && no_account)
+	req->holds--;
+
+    /* Looks good, save and send the password. */
+    strncpy(cli->password, pw, sizeof(cli->password));
+    iauth_xquery_check(req, IAUTH_GOT_PASSWORD);
+}
+
 static void iauth_xquery_password(struct iauth_request *req,
 				  const char password[])
 {
@@ -396,9 +496,8 @@ static void iauth_xquery_password(struct iauth_request *req,
     if (!cli)
 	return;
 
-    if (cli->password[0] == '\0') {
-	strncpy(cli->password, password, sizeof(cli->password));
-	iauth_xquery_check(req, IAUTH_GOT_PASSWORD);
+    if ((cli->more_mask == 0) || (cli->password[0] == '\0')) {
+	iauth_xquery_check_password(req, cli, password);
     } else {
 	struct iauth_xquery_service *srv;
 	char routing[ROUTINGLEN];

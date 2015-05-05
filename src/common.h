@@ -77,11 +77,12 @@ void ctype_init(void);
 #include "src/vector.h"
 
 DECLARE_VECTOR(char_vector, char);
-void char_vector_reserve(struct char_vector *cv, unsigned int total_size);
 void char_vector_append_string(struct char_vector *cv, const char *string);
 void char_vector_append_count(struct char_vector *cv, const char *data, unsigned int count);
 void char_vector_append_printf(struct char_vector *cv, const char *format, ...) PRINTF_LIKE(2, 3);
 void char_vector_append_vprintf(struct char_vector *cv, const char *format, va_list args);
+
+DECLARE_VECTOR(uint_vector, unsigned int);
 
 DECLARE_VECTOR(string_vector, char *);
 void string_vector_clear_int(struct string_vector *sv);

@@ -34,6 +34,7 @@
 };\
 void STRUCTNAME##_wipe(struct STRUCTNAME *vec);\
 void STRUCTNAME##_init(struct STRUCTNAME *vec, unsigned int len);\
+void STRUCTNAME##_reserve(struct STRUCTNAME *vec, unsigned int len);\
 void STRUCTNAME##_append(struct STRUCTNAME *vec, ITEMTYPE new_item);\
 void STRUCTNAME##_clear(struct STRUCTNAME *vec)
 
@@ -47,6 +48,11 @@ void STRUCTNAME##_init(struct STRUCTNAME *vec, unsigned int len) {\
   vec->used = 0;\
   vec->size = len;\
   vec->vec = xmalloc(vec->size * sizeof(vec->vec[0]));\
+}\
+void STRUCTNAME##_reserve(struct STRUCTNAME *vec, unsigned int len) {\
+  while (vec->size < len)\
+    vec->size <<= 1;\
+  vec->vec = xrealloc(vec->vec, vec->size*sizeof(vec->vec[0]));\
 }\
 void STRUCTNAME##_append(struct STRUCTNAME *vec, ITEMTYPE new_item) {\
   if (vec->used == vec->size) {\

@@ -26,6 +26,7 @@
 #include "src/common.h"
 
 DEFINE_VECTOR(char_vector, char)
+DEFINE_VECTOR(uint_vector, unsigned int)
 DEFINE_VECTOR(string_vector, char *)
 DEFINE_VECTOR(const_string_vector, const char *)
 
@@ -105,20 +106,6 @@ void call_exit_funcs(void)
         ef_list[--ii]();
     xfree(ef_list);
     ef_used = ef_size = 0;
-}
-
-void char_vector_reserve(struct char_vector *cv, unsigned int total_size)
-{
-    char *new_vec;
-    if (total_size <= cv->size)
-        return;
-    new_vec = malloc(total_size);
-    if (!new_vec)
-        return;
-    memcpy(new_vec, cv->vec, cv->used);
-    xfree(cv->vec);
-    cv->vec = new_vec;
-    cv->size = total_size;
 }
 
 void char_vector_append_count(struct char_vector *cv, const char *data, unsigned int count)

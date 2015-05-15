@@ -93,6 +93,7 @@ void const_string_vector_remove(struct const_string_vector *sv, const char *stri
 
 /* Include the declarations for other iauthd core functionality. */
 
+#include "src/accumulators.h"
 #include "src/config.h"
 #include "src/log.h"
 #include "src/module.h"

@@ -44,6 +44,7 @@ src/git-version.c: checkversion
 endif
 
 src_iauthd_c_SOURCES = \
+	src/accumulators.c src/accumulators.h \
 	src/bitset.c src/bitset.h \
 	src/common.c src/common.h \
 	src/compat.h \
@@ -56,5 +57,5 @@ src_iauthd_c_SOURCES = \
 	src/set.c src/set.h \
 	src/vector.h
 
-src_iauthd_c_LDADD = $(LIBEVENT_LIBS)
+src_iauthd_c_LDADD = $(LIBEVENT_LIBS) -lm -lrt
 src_iauthd_c_LDFLAGS = -export-dynamic

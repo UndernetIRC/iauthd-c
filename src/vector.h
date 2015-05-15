@@ -50,7 +50,9 @@ void STRUCTNAME##_init(struct STRUCTNAME *vec, unsigned int len) {\
   vec->vec = xmalloc(vec->size * sizeof(vec->vec[0]));\
 }\
 void STRUCTNAME##_reserve(struct STRUCTNAME *vec, unsigned int len) {\
-  while (vec->size < len)\
+  if (vec->size == 0)\
+    vec->size = len;\
+  else while (vec->size < len)                 \
     vec->size <<= 1;\
   vec->vec = xrealloc(vec->vec, vec->size*sizeof(vec->vec[0]));\
 }\

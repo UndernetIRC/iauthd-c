@@ -31,6 +31,7 @@ EXTRA_LDFLAGS = $(AM_LDFLAGS) -rpath $(pkglibdir)
 
 pkglib_LTLIBRARIES = \
 	modules/iauth.la \
+	modules/iauth_class.la \
 	modules/iauth_xquery.la
 
 modules_iauth_la_SOURCES = \
@@ -38,6 +39,10 @@ modules_iauth_la_SOURCES = \
 	modules/iauth_core.c \
 	modules/iauth_misc.c
 modules_iauth_la_LDFLAGS = $(EXTRA_LDFLAGS)
+
+modules_iauth_class_la_SOURCES = \
+	modules/iauth_class.c
+modules_iauth_class_la_LDFLAGS = $(EXTRA_LDFLAGS)
 
 modules_iauth_xquery_la_SOURCES = \
 	modules/iauth_xquery.c

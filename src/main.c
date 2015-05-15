@@ -54,7 +54,7 @@ static int do_arg_help(UNUSED_ARG(const char *arg))
     pname = strrchr(iauthd_executable, '/');
     pname = pname ? pname + 1 : iauthd_executable;
     fprintf(stdout, PACKAGE_STRING ", revision %s\n", iauthd_version);
-    fprintf(stdout, "%s [-?|-v|-k] [-f filename] [-s seed] [-n] [-d]\n", pname);
+    fprintf(stdout, "%s [-?|-v|-k] [-f filename] [-d]\n", pname);
     for (ii = 0; args[ii].handler; ++ii) {
         if (args[ii].short_arg && args[ii].long_arg) {
             fprintf(stdout, "  -%c, --%-10s %s\n", args[ii].short_arg, args[ii].long_arg, args[ii].description);

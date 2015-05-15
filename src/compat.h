@@ -84,6 +84,10 @@
 # include <netdb.h>
 #endif
 
+#if defined(HAVE_FNMATCH_H)
+# include <fnmatch.h>
+#endif
+
 #if !defined(LINE_MAX)
 /* Should be defined by Unix header files; Cygwin lacks it. */
 # define LINE_MAX 4096
@@ -92,6 +96,15 @@
 #if !defined(HAVE_GMTIME_R)
 /* For a single-threaded application, this provides reentrant behavior. */
 #define gmtime_r(CLOCK, RES) memcpy((RES), gmtime(CLOCK), sizeof(struct tm))
+#endif
+
+#if !defined(HAVE_FNMATCH)
+# define FNM_NOESCAPE 1
+# define FNM_PATHNAME 2
+# define FNM_PERIOD   4
+# define FNM_NOMATCH  1
+# define FNM_R_DEPTH  2
+int fnmatch(const char *pattern, const char *string, int flags);
 #endif
 
 #if !defined(HAVE_STRLCPY)

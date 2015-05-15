@@ -205,6 +205,68 @@ void const_string_vector_remove(struct const_string_vector *sv, const char *stri
             sv->used--;
 }
 
+#if !defined(HAVE_FNMATCH)
+
+static int fnmatch_(const char *pattern, const char *string, int flags, int rdepth)
+{
+    const char *start;
+    char c;
+
+    if (!rdepth--)
+        return FNM_R_DEPTH;
+
+    for (start = string; ; ) {
+        c = *pattern++;
+        switch (c) {
+        case '\0':
+            return (*string == '\0') ? 0 : FNM_NOMATCH;
+        case '?':
+            if (*string == '\0')
+                return FNM_NOMATCH;
+            /* Enforce the FNM_PERIOD rule. */
+            if ((*string == '.') && (flags & FNM_PERIOD)
+                && ((string == start)
+                    || ((flags & FNM_PATHNAME) && (string[-1] == '/'))))
+                return FNM_NOMATCH;
+            ++string;
+            break;
+        case '*':
+            /* Collapse consecutive wildcards. */
+            while (*pattern == '*')
+                pattern++;
+            if ((*string == '.') && (flags & FNM_PERIOD)
+                && ((string == start)
+                    || ((flags & FNM_PATHNAME) && (string[-1] == '/'))))
+                return FNM_NOMATCH;
+            /* Special case for * at end of string. */
+            if (*pattern == '\0') {
+                return ((flags & FNM_PATHNAME) && strchr(string, '/'))
+                    ? FNM_NOMATCH : 0;
+            }
+#error Finish implementing fnmatch()
+            break;
+        case '\\':
+            if (!(flags & FNM_NOESCAPE)) {
+                c = *pattern++;
+                if (c == '\0')
+                    --pattern;
+            }
+            /* and fall through */
+        default:
+            if (c != *string++)
+                return FNM_NOMATCH;
+            break;
+        }
+    }
+}
+
+int fnmatch(const char *pattern, const char *string, int flags)
+{
+    fnmatch_(pattern, string, flags, 10);
+}
+
+#endif /* !defined(HAVE_FNMATCH) */
+
 #if !defined(HAVE_STRLCPY)
 
 size_t
@@ -221,3 +283,4 @@ strlcpy(char *out, const char *in, size_t len)
 }
 
 #endif /* !defined(HAVE_STRLCPY) */
+

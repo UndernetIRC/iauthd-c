@@ -38,6 +38,19 @@ int bitset_and(bitset_page_t *out, const bitset_page_t *in1, const bitset_page_t
     return non_zero;
 }
 
+int bitset_andnot(bitset_page_t *out, const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count)
+{
+    unsigned int ii;
+    int non_zero;
+
+    for (ii = non_zero = 0; ii < count; ++ii) {
+        out[ii] = in1[ii] & ~in2[ii];
+        if (out[ii])
+            non_zero++;
+    }
+    return non_zero;
+}
+
 int bitset_or(bitset_page_t *out, const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count)
 {
     unsigned int ii;

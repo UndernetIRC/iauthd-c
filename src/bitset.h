@@ -41,6 +41,7 @@ typedef unsigned int bitset_page_t;
 #define BITSET_ZERO(SET) memset((SET).bits, 0, sizeof((SET).bits))
 #define BITSET_COPY(OUT, IN) memcpy((OUT).bits, (IN).bits, sizeof((OUT).bits))
 #define BITSET_AND(OUT, IN1, IN2) bitset_and((OUT).bits, (IN1).bits, (IN2).bits, ARRAY_LENGTH((OUT).bits))
+#define BITSET_ANDNOT(OUT, IN1, IN2) bitset_andnot((OUT).bits, (IN1).bits, (IN2).bits, ARRAY_LENGTH((OUT).bits))
 #define BITSET_OR(OUT, IN1, IN2) bitset_or((OUT).bits, (IN1).bits, (IN2).bits, ARRAY_LENGTH((OUT).bits))
 #define BITSET_COUNT(SET) bitset_count((SET).bits, ARRAY_LENGTH((SET).bits))
 #define BITSET_H_ANDNOT(IN1, IN2) bitset_h_andnot((IN1).bits, (IN2).bits, ARRAY_LENGTH((IN1).bits))
@@ -48,6 +49,7 @@ typedef unsigned int bitset_page_t;
 #define BITSET_MULTI_SET(SET, ...) bitset_set((SET).bits, __VA_ARGS__, -1)
 
 int bitset_and(bitset_page_t *out, const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count);
+int bitset_andnot(bitset_page_t *out, const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count);
 int bitset_or(bitset_page_t *out, const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count);
 int bitset_h_andnot(const bitset_page_t *in1, const bitset_page_t *in2, unsigned int count);
 unsigned int bitset_count(const bitset_page_t *in, unsigned int count);

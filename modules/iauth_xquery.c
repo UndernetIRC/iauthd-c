@@ -290,6 +290,8 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
     /* Handle the response. */
     if (!reply) {
 	srv->unlinked++;
+        if (srv->type != DRONECHECK)
+            iauth_challenge(req, "The login server is currently disconnected.  Please excuse the inconvenience.");
     } else if (reply[0] == 'O' && reply[1] == 'K'
 	       && (reply[2] == '\0' || reply[2] == ' ')) {
 	if (reply[2] != ' ') {

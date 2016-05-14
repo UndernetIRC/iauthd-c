@@ -24,6 +24,7 @@
  */
 
 #include "src/common.h"
+#include <signal.h>
 
 struct argument {
     char *long_arg;
@@ -40,6 +41,8 @@ static struct {
 } conf;
 
 static const struct argument args[];
+static struct event sighup_evt;
+static struct event sigusr1_evt;
 static const char *config_filename = SYSCONFDIR "/iauthd-c.conf";
 static const char *iauthd_executable;
 static int verbose_debug;
@@ -200,6 +203,18 @@ static void log_for_evdns(int is_warning, const char msg[])
     log_message(log_core, is_warning ? LOG_WARNING : LOG_ERROR, "evdns: %s", msg);
 }
 
+static void break_loop(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_ARG(void *arg))
+{
+    log_message(log_core, LOG_INFO, "break_loop() called due to signal");
+    event_loopbreak();
+}
+
+static void reload_config(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_ARG(void *arg))
+{
+    log_message(log_core, LOG_INFO, "Re-reading config file due to signal");
+    conf_read(config_filename);
+}
+
 int main(int argc, char *argv[])
 {
     iauthd_executable = argv[0];
@@ -252,6 +267,14 @@ int main(int argc, char *argv[])
         fprintf(stdout, "Configuration file %s appears valid.\n", config_filename);
         return EXIT_SUCCESS;
     }
+
+    /* Handle signals. */
+    evsignal_set(&sighup_evt, SIGHUP, break_loop, NULL);
+    if (event_add(&sighup_evt, NULL))
+        log_message(log_core, LOG_FATAL, "Unable to handle SIGHUP handler.");
+    evsignal_set(&sigusr1_evt, SIGUSR1, reload_config, NULL);
+    if (event_add(&sigusr1_evt, NULL))
+        log_message(log_core, LOG_FATAL, "Unable to handle SIGUSR1 handler.");
 
     /* Run the event loop. */
     event_dispatch();

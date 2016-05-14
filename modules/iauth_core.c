@@ -761,6 +761,14 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
     }
 }
 
+static void iauth_io_error(UNUSED_ARG(struct bufferevent *buf), short events, UNUSED_ARG(void *arg))
+{
+    if (events & EVBUFFER_EOF) {
+        log_message(log_core, LOG_INFO, "Terminating due to EOF on input");
+        event_loopbreak();
+    }
+}
+
 static void iauth_startup(UNUSED_ARG(int fd), UNUSED_ARG(short evt), UNUSED_ARG(void *arg))
 {
     char policies[64] = "ARTUW";
@@ -794,7 +802,7 @@ void module_constructor(UNUSED_ARG(const char name[]))
     iauth_conf = conf_register_object(NULL, "iauth");
     iauth_conf_timeout = conf_register_string(iauth_conf, CONF_STRING_INTERVAL, "timeout", "0");
     event_once(-1, EV_TIMEOUT, iauth_startup, NULL, &tv_zero);
-    iauth_in = bufferevent_new(STDIN_FILENO, iauth_read, NULL, NULL, NULL);
+    iauth_in = bufferevent_new(STDIN_FILENO, iauth_read, NULL, iauth_io_error, NULL);
     bufferevent_enable(iauth_in, EV_READ);
 }
 

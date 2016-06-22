@@ -353,7 +353,7 @@ static void iauth_xquery_new_client(struct iauth_request *req)
 }
 
 static void iauth_xquery_check(struct iauth_request *req,
-			       UNUSED_ARG(enum iauth_flags flag))
+			       enum iauth_flags flag)
 {
     struct iauth_xquery_client *cli;
     struct iauth_xquery_service *srv;
@@ -407,9 +407,9 @@ static void iauth_xquery_check(struct iauth_request *req,
 			  hostname, req->realname);
 
 	if (srv->type == LOGIN || srv->type == COMBINED)
-	    iauth_x_query(srv->name, routing, "LOGIN %s", cli->password);
+	    iauth_x_query(srv->name, routing, "LOGIN :%s", cli->password);
 	else if (srv->type == LOGIN_IPR)
-	    iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s %s",
+	    iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s :%s",
 			  req->text_addr, hostname, username,
 			  cli->password);
 
@@ -638,6 +638,12 @@ void module_constructor(UNUSED_ARG(const char name[]))
     BITSET_OR(iauth_xquery_flags[COMBINED],
 	      iauth_xquery_flags[LOGIN],
 	      iauth_xquery_flags[DRONECHECK]);
+    /* Clear the IAUTH_GOT_PASSWORD flag for a COMBINED service
+     * because it should use a password when one is supplied, but send
+     * a query even if no password was given.
+     */
+    BITSET_CLEAR(iauth_xquery_flags[COMBINED],
+                 IAUTH_GOT_PASSWORD);
     iauth_register_module(&iauth_xquery);
 }
 

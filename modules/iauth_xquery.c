@@ -549,7 +549,7 @@ static void iauth_xquery_config_service(const char *name, const char *type)
     }
 
     /* If not, add it. */
-    if (!srv) {
+    if (ii == iauth_xquery_services.used) {
 	srv = xmalloc(sizeof(*srv) + strlen(name));
 	strcpy(srv->name, name);
 

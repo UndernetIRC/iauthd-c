@@ -519,10 +519,7 @@ static void iauth_xquery_password(struct iauth_request *req,
     }
 }
 
-static void iauth_xquery_user_info(struct iauth_request *req,
-				   UNUSED_ARG(const char username[]),
-				   UNUSED_ARG(const char hostname[]),
-				   UNUSED_ARG(const char service[]))
+static void iauth_xquery_user_info(struct iauth_request *req)
 {
     iauth_xquery_check(req, IAUTH_GOT_USER_INFO);
 }

@@ -526,17 +526,17 @@ static void parse_user_info(struct iauth_request *req, int argc, char *argv[])
     struct iauth_module *plugin;
     struct set_node *node;
 
-    if (argc < 5)
+    if (argc < 3)
         return;
     strncpy(req->cli_username, argv[1], USERLEN);
-    strncpy(req->realname, argv[4], REALLEN);
+    strncpy(req->realname, argv[2], REALLEN);
     BITSET_SET(req->flags, IAUTH_GOT_USER_INFO);
     if (BITSET_GET(req->flags, IAUTH_EMPTY_IDENT))
 	BITSET_SET(req->flags, IAUTH_GOT_IDENT);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (plugin->user_info != NULL)
-            plugin->user_info(req, argv[1], argv[2], argv[3]);
+            plugin->user_info(req);
     }
     iauth_check_request(req);
 }

@@ -314,9 +314,9 @@ struct iauth_module {
     /** Handler function for client user info (ircd 'U' message).
      *
      * The client user info (if any) is stored in \a req->realname
-     * before calling this function.
+     * and \a req->realname before calling this function.
      */
-    void (*user_info)(struct iauth_request *req, const char username[], const char hostname[], const char server[]);
+    void (*user_info)(struct iauth_request *req);
 
     /** Handler function for an extension query reply. */
     void (*x_reply)(const char server[], const char routing[], const char reply[]);

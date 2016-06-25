@@ -31,8 +31,9 @@ AC_CONFIG_HEADERS([autoconf.h])
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([silent-rules])
-AC_ENABLE_STATIC(no)
-AC_ENABLE_SHARED(yes)
+AM_SILENT_RULES([yes])
+AC_ENABLE_STATIC([no])
+AC_ENABLE_SHARED([yes])
 LT_INIT
 
 dnl Check for toolchain utilities.

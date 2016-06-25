@@ -47,7 +47,9 @@ static const char *config_filename = SYSCONFDIR "/iauthd-c.conf";
 static const char *iauthd_executable;
 static int verbose_debug;
 static int early_exit;
+static int no_chdir;
 static int restart;
+int clean_exit;
 
 static int do_arg_help(UNUSED_ARG(const char *arg))
 {
@@ -97,12 +99,19 @@ static int do_arg_debug(UNUSED_ARG(const char *arg))
     return 0;
 }
 
+static int do_arg_no_chdir(UNUSED_ARG(const char *arg))
+{
+    no_chdir = 1;
+    return 0;
+}
+
 static const struct argument args[] = {
     { "help", '?', do_arg_help, 0, "Show usage information" },
     { "version", 'v', do_arg_version, 0, "Show software version" },
     { "check-config", 'k', do_arg_check_config, 0, "Stop after checking configuration syntax" },
     { "config", 'f', do_arg_config, 1, "Use specific configuration file" },
     { "debug", 'd', do_arg_debug, 0, "Enable verbose debug output" },
+    { "no-chdir", 'n', do_arg_no_chdir, 0, "Disable chdir(LOGDIR) at startup" },
     { NULL, '\0', NULL, 0, NULL }
 };
 
@@ -206,6 +215,7 @@ static void log_for_evdns(int is_warning, const char msg[])
 static void break_loop(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_ARG(void *arg))
 {
     log_message(log_core, LOG_INFO, "break_loop() called due to signal");
+    clean_exit = 1;
     event_loopbreak();
 }
 
@@ -224,7 +234,7 @@ int main(int argc, char *argv[])
     /* Attempt to change to the log directory unless started relative
      * to cwd.
      */
-    if (argv[0][0] != '.') {
+    if ((argv[0][0] != '.') && (no_chdir == 0)) {
         if (0 != chdir(LOGDIR))
             fprintf(stderr, "chdir(\"%s\") failed: %s\n", LOGDIR, strerror(errno));
     }
@@ -255,6 +265,7 @@ int main(int argc, char *argv[])
     log_set_verbosity(verbose_debug ? 2 : 0);
     ctype_init();
     module_init();
+    sar_init();
     if (conf_read(config_filename))
         return EXIT_FAILURE;
     if (module_add_path(&conf.library_path->value))
@@ -290,5 +301,5 @@ int main(int argc, char *argv[])
         log_message(log_core, LOG_FATAL, "Unable to restart iauthd-c: %s\n", strerror(errno));
     }
 
-    return EXIT_FAILURE;
+    return clean_exit ? EXIT_SUCCESS : EXIT_FAILURE;
 }

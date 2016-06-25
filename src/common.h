@@ -48,6 +48,9 @@ typedef void (*exit_func_t)(void);
 void reg_exit_func(exit_func_t handler);
 void call_exit_funcs(void);
 
+/** Flag for intentional (clean) exit. */
+extern int clean_exit;
+
 /** Global variable containing fully qualified revision name. */
 extern const char iauthd_version[];
 

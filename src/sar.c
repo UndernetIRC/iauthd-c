@@ -1028,7 +1028,7 @@ static void sar_services_load_file(const char *etc_services)
         /* Set up canonical name-indexed service entry. */
         canon = sar_service_byname(name, 1);
         if (canon->protos[proto].valid) {
-            log_message(sar_log, LOG_ERROR, "Service %s/%s listed twice.", name, port);
+            log_message(sar_log, LOG_INFO, "Service %s/%s listed twice.", name, port);
             continue;
         }
         canon->protos[proto].canon = NULL;
@@ -1619,6 +1619,7 @@ static unsigned int sar_pton_ip4(const char *input, unsigned int *bits, uint32_t
                 return 0;
             if ((dots == 3) && !isdigit(input[pos])) {
                 *output = htonl(ip | part);
+                *bits = 32;
                 return pos;
             }
         } else if (input[pos] == '.') {
@@ -1631,9 +1632,10 @@ static unsigned int sar_pton_ip4(const char *input, unsigned int *bits, uint32_t
             char *term;
 
             len = strtoul(input + pos + 1, &term, 10);
-            if (term <= input + pos + 1)
+            if (term <= input + pos + 1) {
+                *bits = 32;
                 return pos;
-            else if (len > 32)
+            } else if (len > 32)
                 return 0;
             *bits = len;
             return term - input;
@@ -1748,6 +1750,37 @@ static unsigned int ipv6_ntop(char *output, unsigned int out_size, const struct 
         max_zeros = curr_zeros;
     }
 
+    /* Is it an IPv4-compatible or -mapped IPv6 address? */
+    if ((max_start == 0)
+        && (((max_zeros == 5)
+             && (sin6->sin6_addr.s6_addr[10] == 255)
+             && (sin6->sin6_addr.s6_addr[11] == 255))
+            || ((max_zeros == 6)
+                && (sin6->sin6_addr.s6_addr[10] == 0)
+                && (sin6->sin6_addr.s6_addr[11] == 0)))) {
+        output[0] = ':';
+        output[1] = ':';
+
+        if (max_zeros == 5) {
+            output[2] = 'f';
+            output[3] = 'f';
+            output[4] = 'f';
+            output[5] = 'f';
+            output[6] = ':';
+            pos = 7;
+        } else {
+            pos = 2;
+        }
+
+        pos += sprintf(output + pos, "%d.%d.%d.%d",
+                       sin6->sin6_addr.s6_addr[12],
+                       sin6->sin6_addr.s6_addr[13],
+                       sin6->sin6_addr.s6_addr[14],
+                       sin6->sin6_addr.s6_addr[15]);
+
+        return pos;
+    }
+
     /* Print out address. */
 #define APPEND(CH) do { output[pos++] = (CH); if (pos >= out_size) return 0; } while (0)
     for (pos = 0, ii = 0; ii < 8; ++ii) {
@@ -1772,7 +1805,7 @@ static unsigned int ipv6_ntop(char *output, unsigned int out_size, const struct 
     APPEND('\0');
 #undef APPEND
 
-    return pos;
+    return pos - 1;
 }
 
 static unsigned int ipv6_pton(struct sockaddr *sa, UNUSED_ARG(unsigned int socklen), unsigned int *bits, const char *input)
@@ -1781,7 +1814,7 @@ static unsigned int ipv6_pton(struct sockaddr *sa, UNUSED_ARG(unsigned int sockl
     struct sockaddr_in6 *sin6;
     char *colon;
     char *dot;
-    unsigned int part = 0, pos = 0, ii = 0, cpos = 8;
+    unsigned int part = 0, pos = 0, ii = 0, cpos = 8, n_bits = 128;
 
     if (!(colon = strchr(input, ':')))
         return 0;
@@ -1790,82 +1823,83 @@ static unsigned int ipv6_pton(struct sockaddr *sa, UNUSED_ARG(unsigned int sockl
         return 0;
     sin6 = (struct sockaddr_in6*)sa;
     /* Parse IPv6, possibly like ::127.0.0.1.
-         * This is pretty straightforward; the only trick is borrowed
-         * from Paul Vixie (BIND): when it sees a "::" continue as if
-         * it were a single ":", but note where it happened, and fill
-         * with zeros afterwards.
-         */
-        if (input[pos] == ':') {
-            if ((input[pos+1] != ':') || (input[pos+2] == ':'))
+     * This is pretty straightforward; the only trick is borrowed
+     * from Paul Vixie (BIND): when it sees a "::" continue as if
+     * it were a single ":", but note where it happened, and fill
+     * with zeros afterwards.
+     */
+    if (input[pos] == ':') {
+        if ((input[pos+1] != ':') || (input[pos+2] == ':'))
+            return 0;
+        cpos = 0;
+        pos += 2;
+        part_start = input + pos;
+    }
+    while (ii < 8) {
+        if (ct_isxdigit(input[pos])) {
+            part = (part << 4) | ct_xdigit_val(input[pos]);
+            if (part > 0xffff)
                 return 0;
-            cpos = 0;
-            pos += 2;
-            part_start = input + pos;
-        }
-        while (ii < 8) {
-            if (ct_isxdigit(input[pos])) {
-                part = (part << 4) | ct_xdigit_val(input[pos]);
-                if (part > 0xffff)
+            pos++;
+        } else if (input[pos] == ':') {
+            part_start = input + ++pos;
+            if (input[pos] == '.')
+                return 0;
+            sin6->sin6_addr.s6_addr[ii * 2] = part >> 8;
+            sin6->sin6_addr.s6_addr[ii * 2 + 1] = part & 255;
+            ii++;
+            part = 0;
+            if (input[pos] == ':') {
+                if (cpos < 8)
                     return 0;
+                cpos = ii;
                 pos++;
-            } else if (input[pos] == ':') {
-                part_start = input + ++pos;
-                if (input[pos] == '.')
-                    return 0;
-                sin6->sin6_addr.s6_addr[ii * 2] = part >> 8;
-                sin6->sin6_addr.s6_addr[ii * 2 + 1] = part & 255;
-                ii++;
-                part = 0;
-                if (input[pos] == ':') {
-                    if (cpos < 8)
-                        return 0;
-                    cpos = ii;
-                    pos++;
-                }
-            } else if (input[pos] == '.') {
-                uint32_t ip4;
-                unsigned int len;
-                len = sar_pton_ip4(part_start, bits, &ip4);
-                if (!len || (ii > 6))
-                    return 0;
-                memcpy(sin6->sin6_addr.s6_addr + ii * 2, &ip4, sizeof(ip4));
-                if (bits)
-                    *bits += ii * 16;
-                ii += 2;
-                pos = part_start + len - input;
-                break;
-            } else if (bits && input[pos] == '/' && isdigit(input[pos + 1])) {
-                unsigned int len;
-                char *term;
+            }
+        } else if (input[pos] == '.') {
+            uint32_t ip4;
+            unsigned int len;
+            len = sar_pton_ip4(part_start, &n_bits, &ip4);
+            if (!len || (ii > 6))
+                return 0;
+            memcpy(sin6->sin6_addr.s6_addr + ii * 2, &ip4, sizeof(ip4));
+            n_bits += ii * 16;
+            ii += 2;
+            pos = part_start + len - input;
+            break;
+        } else if (bits && input[pos] == '/' && isdigit(input[pos + 1])) {
+            unsigned int len;
+            char *term;
 
-                len = strtoul(input + pos + 1, &term, 10);
-                if (term <= input + pos + 1)
-                    break;
-                else if (len > 128)
-                    return 0;
-                if (bits)
-                    *bits = len;
-                pos = term - input;
+            len = strtoul(input + pos + 1, &term, 10);
+            if (term <= input + pos + 1)
                 break;
-            } else if (cpos <= 8) {
-                sin6->sin6_addr.s6_addr[ii * 2] = part >> 8;
-                sin6->sin6_addr.s6_addr[ii * 2 + 1] = part & 255;
-                ii++;
-                break;
-            } else return 0;
-        }
-        /* Shift stuff after "::" up and fill middle with zeros. */
-        if (cpos < 8) {
-            unsigned int jj;
-            ii <<= 1;
-            cpos <<= 1;
-            for (jj = 0; jj < ii - cpos; jj++)
-                sin6->sin6_addr.s6_addr[15 - jj] = sin6->sin6_addr.s6_addr[ii - jj - 1];
-            for (jj = 0; jj < 16 - ii; jj++)
-                sin6->sin6_addr.s6_addr[cpos + jj] = 0;
-        }
-        sa->sa_family = AF_INET6;
-        return pos;
+            else if (len > 128)
+                return 0;
+            n_bits = len;
+            pos = term - input;
+            break;
+        } else if (cpos <= 8) {
+            sin6->sin6_addr.s6_addr[ii * 2] = part >> 8;
+            sin6->sin6_addr.s6_addr[ii * 2 + 1] = part & 255;
+            ii++;
+            break;
+        } else return 0;
+    }
+    /* Shift stuff after "::" up and fill middle with zeros. */
+    if (cpos < 8) {
+        unsigned int jj;
+        ii <<= 1;
+        cpos <<= 1;
+        n_bits = 128;
+        for (jj = 0; jj < ii - cpos; jj++)
+            sin6->sin6_addr.s6_addr[15 - jj] = sin6->sin6_addr.s6_addr[ii - jj - 1];
+        for (jj = 0; jj < 16 - ii; jj++)
+            sin6->sin6_addr.s6_addr[cpos + jj] = 0;
+    }
+    if (bits)
+        *bits = n_bits;
+    sa->sa_family = AF_INET6;
+    return pos;
 }
 
 static int ipv6_get_port(const struct sockaddr *sa, UNUSED_ARG(unsigned int socklen))

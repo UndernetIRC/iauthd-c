@@ -22,6 +22,21 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/autoconf/tap-driver.sh
 TESTS = tests/test_all.sh
+TEST_LDFLAGS = -module -rpath $(abs_top_builddir)
 
-# TEST_LDFLAGS = $(AM_LDFLAGS)
+check_LTLIBRARIES = \
+	tests/test_sar.la \
+	tests/tests.la
+
+tests_test_sar_la_SOURCES = \
+	tests/test_sar.c
+
+tests_test_sar_la_LDFLAGS = $(TEST_LDFLAGS)
+
+tests_tests_la_SOURCES = \
+	tests/tests.h \
+	tests/tests.c
+
+tests_tests_la_LDFLAGS = $(TEST_LDFLAGS)

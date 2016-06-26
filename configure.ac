@@ -29,6 +29,7 @@ AC_CONFIG_AUX_DIR([autoconf])
 AC_CONFIG_MACRO_DIR([autoconf])
 AC_CONFIG_HEADERS([autoconf.h])
 AC_CONFIG_SRCDIR([src/main.c])
+AC_REQUIRE_AUX_FILE([tap-driver.sh])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([silent-rules])
 AM_SILENT_RULES([yes])

@@ -28,8 +28,7 @@ libexec_PROGRAMS = src/iauthd-c
 if HAS_GIT
 .PHONY: checkversion
 checkversion:
-	@GIT_VERSION=`$(GIT) describe --dirty=*`; \
-        [ "z$$GIT_VERSION" != "z" ] || exit 0; \
+	@GIT_VERSION=`$(GIT) describe --dirty=*` || exit 0; \
 	TMPFILE=`mktemp src/git-version.c.XXXXXX` || exit 1 ; \
 	echo "const char iauthd_version[] = \"$$GIT_VERSION\";" >> $$TMPFILE ; \
 	if diff -q src/git-version.c $$TMPFILE >/dev/null 2>&1 ; then \
@@ -41,6 +40,9 @@ checkversion:
 	fi
 
 src/git-version.c: checkversion
+
+distclean-local:
+	rm src/git-version.c
 endif
 
 src_iauthd_c_SOURCES = \

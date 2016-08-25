@@ -22,4 +22,5 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+EXTRA_DIST  += doc/iauthd-c.conf.example
 sysconf_DATA = doc/iauthd-c.conf.example

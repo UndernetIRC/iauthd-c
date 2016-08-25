@@ -23,8 +23,14 @@
 # SOFTWARE.
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) $(top_srcdir)/autoconf/tap-driver.sh
-TESTS = tests/test_all.sh
 TEST_LDFLAGS = -module -rpath $(abs_top_builddir)
+
+TESTS = \
+	tests/test_all.sh
+
+EXTRA_DIST += \
+	tests/iauthd-c.conf \
+	tests/test_all.sh
 
 check_LTLIBRARIES = \
 	tests/test_sar.la \

@@ -22,10 +22,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-BUILT_SOURCES = src/git-version.c
 libexec_PROGRAMS = src/iauthd-c
 
 if HAS_GIT
+BUILT_SOURCES = src/git-version.c
 .PHONY: checkversion
 checkversion:
 	@GIT_VERSION=`$(GIT) describe --dirty=*` || exit 0; \

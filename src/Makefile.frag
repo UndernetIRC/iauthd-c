@@ -28,7 +28,7 @@ if HAS_GIT
 BUILT_SOURCES = src/git-version.c
 .PHONY: checkversion
 checkversion:
-	@GIT_VERSION=`$(GIT) describe --dirty=*` || exit 0; \
+	@GIT_VERSION=`$(GIT) -C $(top_srcdir) describe --dirty=*` || exit 0; \
 	TMPFILE=`mktemp src/git-version.c.XXXXXX` || exit 1 ; \
 	echo "const char iauthd_version[] = \"$$GIT_VERSION\";" >> $$TMPFILE ; \
 	if diff -q src/git-version.c $$TMPFILE >/dev/null 2>&1 ; then \

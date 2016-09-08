@@ -51,7 +51,7 @@ AC_STRUCT_TM
 
 dnl Check whether we might be running in a git working tree.
 AC_CHECK_PROGS(GIT, [git])
-AM_CONDITIONAL(HAS_GIT, test z$GIT != z -a -d ${ac_top_srcdir}/.git)
+AM_CONDITIONAL(HAS_GIT, test z$GIT != z -a -r ${srcdir}/.git)
 
 dnl Check libraries.
 AC_CHECK_LIB(dl, dlopen)

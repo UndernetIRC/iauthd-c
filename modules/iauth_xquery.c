@@ -320,7 +320,8 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
 
 	if (cli->ref_mask == 0) {
 	    --req->soft_holds;
-	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST))
+	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST)
+	        || BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
 		iauth_user_mode(req, "+x");
 	    iauth_check_request(req);
 	}

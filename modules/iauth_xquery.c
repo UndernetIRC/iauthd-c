@@ -114,6 +114,9 @@ struct iauth_xquery_client {
     /** Bitmask of services that sent MORE responses to this client. */
     uint32_t more_mask;
 
+    /** Bitmask of services that sent OK responses to this client. */
+    uint32_t ok_mask;
+
     /** Account name concatenated with password; empty if unknown.
      *
      * This is the value passed by the client in its *first* PASSWORD
@@ -294,6 +297,7 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
             iauth_challenge(req, "The login server is currently disconnected.  Please excuse the inconvenience.");
     } else if (reply[0] == 'O' && reply[1] == 'K'
 	       && (reply[2] == '\0' || reply[2] == ' ')) {
+	cli->ok_mask |= 1u << ii;
 	if (reply[2] != ' ') {
 	    srv->good_no_acct++;
 	} else if ((srv->type == LOGIN)
@@ -645,6 +649,43 @@ void module_constructor(UNUSED_ARG(const char name[]))
     BITSET_CLEAR(iauth_xquery_flags[COMBINED],
                  IAUTH_GOT_PASSWORD);
     iauth_register_module(&iauth_xquery);
+}
+
+/** Checks whether a client has gotten an "OK" XREPLY from \a service.
+  *
+  * \param[in] request Client to check on.
+  * \param[in] service Name of service to check for.
+  * \return 1 if "OK" was received, 0 if request is in progress,
+  *   negative for various other conditions.
+  */
+int iauth_xreply_ok(struct iauth_request *request, const char *service)
+{
+    struct iauth_xquery_service *srv;
+    struct iauth_xquery_client *cli;
+    void *ptr;
+    unsigned int ii;
+
+    ptr = &iauth_xquery;
+    cli = set_find(&request->data, &ptr);
+    if (!cli)
+	return -1;
+
+    for (ii = 0; ii < iauth_xquery_services.used; ++ii)
+    {
+	srv = iauth_xquery_services.vec[ii];
+	if (strcasecmp(service, srv->name))
+	    continue;
+	if ((cli->ok_mask & (1u << ii)) != 0)
+	    return 1;
+	if ((cli->ref_mask & (1u << ii)) != 0)
+	    return 0;
+	if ((cli->sent_mask & (1u << ii)) == 0)
+	    return -2;
+	/* We got either a "NO" or a "service unlinked" reply. */
+	return -3;
+    }
+
+    return -4;
 }
 
 void module_destructor(void)

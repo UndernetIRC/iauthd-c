@@ -27,7 +27,9 @@
  *
  * Some other module performs iauth-specific functions, then this
  * module decides whether the user should be assigned a particular
- * connection class (cclass).
+ * connection class (cclass).  If no rule matches, this module does
+ * nothing to the client -- another module could assign a class, or
+ * if no iauth module does that, the ircd will try to assign one.
  *
  * We do not want to duplicate functionality that is already in the
  * ircd, or could be more easily done there.  In particular, few
@@ -44,13 +46,17 @@
  * - "account" (string) must match the assigned account stamp
  * - "address" (inaddr) must match the client's IP address
  * - "username" (string) must match the client's trusted username
+ * - "hostname" (string) must match the client's resolved hostname
+ * - "xreply_ok" (string) must match the name of a service that sends
+ *   an XREPLY OK for the client
  *
  * Rules are applied in alphabetic (case-insensitive) order of their
- * object names, stopping after the first full match.
+ * object names, stopping after the first rule that assigns a class.
  *
  * Further assumptions:
  * - The number of rules used to map clients to cclasses is small
- * enough for linear scan to be reasonable.
+ * enough, or dominated by common cases enough, for linear scan to be
+ * reasonable.
  */
 
 #include "modules/iauth.h"
@@ -61,6 +67,7 @@ struct iauth_class_rule {
     char *account;
     char *username;
     char *hostname;
+    char *xreply_ok;
     irc_inaddr address;
     unsigned int address_bits;
     unsigned int assigned;
@@ -144,6 +151,9 @@ CONF_UPDATE_HOOK(iauth_class_conf_changed)
         str = conf_get_child(obj, "hostname", CONF_STRING);
         if (str)
             rule->hostname = xstrdup(str->value);
+	str = conf_get_child(obj, "xreply_ok", CONF_STRING);
+	if (str)
+	    rule->xreply_ok = xstrdup(str->value);
 
         /* Increment the number of rules in the new set. */
         new_rules.used++;
@@ -232,6 +242,9 @@ static IAUTH_RULE_FUNC(iauth_class_rule_check)
     if (rule->username && fnmatch(rule->username, req->auth_username, 0))
         return 0;
 
+    if (rule->xreply_ok && (iauth_xreply_ok(req, rule->xreply_ok) <= 0))
+	return 0;
+
     strlcpy(req->class, rule->class ? rule->class : rule->name, CLASSLEN);
     return 1;
 }
@@ -277,7 +290,7 @@ void module_constructor(const char name[])
 {
     iauth_class.owner = name;
     iauth_class_log = log_type_register(name, NULL);
-    module_depends("iauth", NULL);
+    module_depends("iauth_xquery", NULL);
     conf.root = conf_register_object(NULL, name);
     conf.root->base.hook = iauth_class_conf_changed;
     iauth_class_conf_changed(&conf.root->base);

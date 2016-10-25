@@ -63,3 +63,33 @@ iauth_xquery {
     channels.example.org login-ipr;
     botcheck.example.org dronecheck;
 };
+
+iauth_class {
+    // Each map/object in this defines one rule.  The values within
+    // each rule define either the criteria for the rule to match or
+    // the class to assign clients to.  Rules are considered in
+    // alphabetic order by keys, as determined by strcasecmp(3), all
+    // criteria for a rule must match for the client to be assigned
+    // to the specified class, and rule evaluations stop once a class
+    // is assigned to the client.  If no criteria are listed, the rule
+    // will pass for all clients who reach it.  If no class name is
+    // listed, the rule name is used as the class name, but this is
+    // seldom useful because the class names are usually not in the
+    // same order one would want to check rules3.
+    "r001" {
+	class trusted;
+	username "joe-oper";
+	address "127.0.0.0/8";
+    };
+    "r002" {
+	class trusted;
+	account ircoper;
+    };
+    "r003" {
+	class clients;
+	xreply_ok "euworld.example.org";
+    };
+    "r004" {
+	class default_clients;
+    };
+};

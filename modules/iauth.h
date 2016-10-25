@@ -359,4 +359,7 @@ struct iauth_request *iauth_validate_request(const char routing[]);
  */
 void iauth_check_request(struct iauth_request *request);
 
+/* Implemented by iauth_query module. */
+int iauth_xreply_ok(struct iauth_request *request, const char *service);
+
 #endif /* !defined(IAUTH_H_23889f60_9ad5_4674_8c67_ee44f53cbc74) */

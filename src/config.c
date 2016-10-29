@@ -1,6 +1,6 @@
 /* config.c - configuration file reader
  *
- * Copyright 2004-2005, 2011 Michael Poole <mdpoole@troilus.org>
+ * Copyright 2004-2005, 2011, 2016 Michael Poole <mdpoole@troilus.org>
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -447,13 +447,16 @@ static char *conf_read_file(struct conf_parse *parse, const char *filename)
     return data;
 }
 
-static int conf_parse_whitespace(struct conf_parse *parse)
+static int conf_parse_whitespace(struct conf_parse *parse, int care_eof)
 {
     while (*parse->curr) {
         int c = *parse->curr++, d;
         if (c == '\n') {
+        handle_eof:
             parse->line_start = parse->curr;
             parse->line_num++;
+            if (care_eof)
+                return c;
             continue;
         }
         if (isspace(c))
@@ -465,32 +468,23 @@ static int conf_parse_whitespace(struct conf_parse *parse)
             while (1) {
                 do {
                     c = *parse->curr++;
-                    if (c == '\n') {
-                        parse->line_start = parse->curr;
-                        parse->line_num++;
-                        continue;
-                    }
+                    if (c == '\n')
+                        goto handle_eof;
                 } while (c != '\0' && c != '*');
                 if (c == '\0')
                     return c;
                 c = *parse->curr++;
                 if (c == '\0' || c == '/')
                     break;
-                if (c == '\n') {
-                    parse->line_start = parse->curr;
-                    parse->line_num++;
-                    continue;
-                }
+                if (c == '\n')
+                    goto handle_eof;
             }
         } else if (d == '/') {
             do {
                 c = *parse->curr++;
             } while (c != '\0' && c != '\n');
-            if (c == '\n') {
-                parse->line_start = parse->curr;
-                parse->line_num++;
-                continue;
-            }
+            if (c == '\n')
+                goto handle_eof;
         } else {
             parse->curr--;
             return c;
@@ -506,7 +500,7 @@ static char *conf_parse_string(struct conf_parse *parse)
     const char *end;
     int ch;
 
-    ch = conf_parse_whitespace(parse);
+    ch = conf_parse_whitespace(parse, 0);
     if (ch == '\0')
         return NULL;
     start = parse->curr - 1;
@@ -635,7 +629,7 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
     int ch;
 
     name = conf_parse_string(parse);
-    ch = conf_parse_whitespace(parse);
+    ch = conf_parse_whitespace(parse, 0);
     if (ch == '\0') {
         xfree(name);
         return;
@@ -647,7 +641,7 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
         memset(&new_value, 0, sizeof(new_value));
         while (1) {
             char *value;
-            ch = conf_parse_whitespace(parse);
+            ch = conf_parse_whitespace(parse, 0);
             if (ch == '\0')
                 longjmp(parse->env, PARSE_PREMATURE_EOF);
             if (ch == ')')
@@ -655,7 +649,7 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
             parse->curr--;
             value = conf_parse_string(parse);
             string_vector_append(&new_value, value);
-            ch = conf_parse_whitespace(parse);
+            ch = conf_parse_whitespace(parse, 0);
             if (ch == '\0')
                 longjmp(parse->env, PARSE_PREMATURE_EOF);
             if (ch == ')')
@@ -673,7 +667,7 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
         node->contents.compare = conf_object_cmp;
         node->contents.cleanup = conf_object_cleanup;
         while (1) {
-            ch = conf_parse_whitespace(parse);
+            ch = conf_parse_whitespace(parse, 0);
             if (ch == '}')
                 break;
             parse->curr--;
@@ -684,14 +678,43 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
 
         parse->curr--;
         string = conf_parse_string(parse);
-        ch = conf_parse_whitespace(parse);
-        if (ch == ';') {
+        ch = conf_parse_whitespace(parse, 1);
+        if (ch == ';' || ch == '\n') {
             struct conf_node_string *node;
 
             parse->curr--;
             node = conf_parse_get_child(parent, name, CONF_STRING, sizeof(*node));
             xfree(node->value);
             node->value = string;
+    	} else if (ch == ',') {
+            struct conf_node_string_list *node;
+            struct string_vector new_value;
+
+            node = conf_parse_get_child(parent, name, CONF_STRING_LIST, sizeof(*node));
+            memset(&new_value, 0, sizeof(new_value));
+            while (1) {
+                char *value;
+                ch = conf_parse_whitespace(parse, 1);
+                if (ch == '\0')
+                    longjmp(parse->env, PARSE_PREMATURE_EOF);
+                if (ch == '\n')
+                    break;
+                parse->curr--;
+                value = conf_parse_string(parse);
+                string_vector_append(&new_value, value);
+                ch = conf_parse_whitespace(parse, 1);
+                if (ch == '\0')
+                    longjmp(parse->env, PARSE_PREMATURE_EOF);
+                if (ch == '\n')
+                    break;
+                if (ch != ',')
+                    longjmp(parse->env, PARSE_EXPECTED_COMMA);
+            }
+            conf_set_string_list_value(node, &new_value);
+            string_vector_clear_int(&new_value);
+        } else if ((ch == '}') && (parent != &parse->root)) {
+            parse->curr--;
+            return;
         } else {
             struct conf_node_inaddr *node;
             char *service;
@@ -705,8 +728,8 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
             node->service = service;
         }
     }
-    ch = conf_parse_whitespace(parse);
-    if (ch != ';')
+    ch = conf_parse_whitespace(parse, 1);
+    if ((ch != ';') && (ch != '\n'))
         longjmp(parse->env, PARSE_EXPECTED_SEMICOLON);
 }
 
@@ -903,7 +926,7 @@ char *conf_lookup(const char *node_path, struct conf_node_base **found)
         char_vector_append_printf(&cv, "Expected a comma or closing parenthesis.");
         break;
     case PARSE_EXPECTED_SEMICOLON:
-        char_vector_append_printf(&cv, "Expected a semicolon.");
+        char_vector_append_printf(&cv, "Expected a semicolon or newline.");
         break;
     default:
         char_vector_append_printf(&cv, "Unhandled parse error: %s", strerror(res));

@@ -1,13 +1,13 @@
-// With Emacs, edit in -*- mode: c++ -*- for best legibility.
 /* Informally, the grammar of this file is as follows:
  *
  * file: contents
- * contents: ( string value ';' )*
+ * contents: ( contents ';'|'\n' )? string value
  * string: quoted string; or unquoted sequence of letters, digits,
  *   '-', '.', '_' and '#'
  * value: string | inaddr | stringlist | object
  * inaddr: string string, representing host name and port number or name
  * stringlist: '(' ( ( string ',' )* string )? ')'
+ *   | ( string ',' ( string ',' )* string )
  * object: '{' contents '}'
  *
  * Comments can be either C or C++ style.
@@ -16,9 +16,11 @@
 core {
     // You may want a library-path line if you run iauthd-c from a build tree.
     // The default is <PREFIX>/lib/iauthd-c .
-    // library_path ( "/home/myuser/iauthd-c/modules/.libs" );
-    modules ( iauth_xquery );
-};
+    // Note that these must be string lists, not bare strings;
+    // if only one value is specified, it must use parentheses.
+    // library_path ( "/home/myuser/iauthd-c/modules/.libs" )
+    modules ( iauth_xquery )
+}
 
 logs {
     // Contents in this section have names that consist of a facility
@@ -36,8 +38,8 @@ logs {
     // Supported log methods: file (with file names relative to
     // /usr/local/log/).
 
-    "*.>=info" "file:iauthd-c.log";
-};
+    "*.>=info" "file:iauthd-c.log"
+}
 
 iauth {
     // This indicates the number of seconds before IAuth tries to
@@ -48,8 +50,8 @@ iauth {
     // can safely be removed; with earlier versions, that will cause
     // Authorization Timeout rejections instead of accepting the
     // clients.
-    timeout 30;
-};
+    timeout 30
+}
 
 iauth_xquery {
     // Each "key" is an XQUERY-compatible server name; its value is
@@ -60,9 +62,9 @@ iauth_xquery {
     //  - login-ipr
     //  - dronecheck
     //  - combined (almost like dronecheck plus login-ipr)
-    channels.example.org login-ipr;
-    botcheck.example.org dronecheck;
-};
+    channels.example.org login-ipr
+    botcheck.example.org dronecheck
+}
 
 iauth_class {
     // Each map/object in this defines one rule.  The values within
@@ -77,19 +79,11 @@ iauth_class {
     // seldom useful because the class names are usually not in the
     // same order one would want to check rules3.
     "r001" {
-	class trusted;
-	username "joe-oper";
-	address "127.0.0.0/8";
-    };
-    "r002" {
-	class trusted;
-	account ircoper;
-    };
-    "r003" {
-	class clients;
-	xreply_ok "euworld.example.org";
-    };
-    "r004" {
-	class default_clients;
-    };
-};
+        class trusted
+        username "joe-oper"
+        address "127.0.0.0/8"
+    }
+    "r002" { class trusted; account ircoper }
+    "r003" { class clients; xreply_ok "euworld.example.org" }
+    "r004" { class default_clients }
+}

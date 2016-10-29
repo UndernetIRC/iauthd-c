@@ -65,9 +65,9 @@ static int conf_object_cmp(const void *a_, const void *b_)
     const struct conf_node_base *a = a_;
     const struct conf_node_base *b = b_;
     int res = strcasecmp(a->name, b->name);
-    if (res)
-        return res;
-    return a->type - b->type;
+    if (res == 0)
+        res = a->type - b->type;
+    return res;
 }
 
 static void conf_object_cleanup(void *base_)
@@ -152,7 +152,7 @@ int conf_parse_integer(const char *value, int *success)
 
     ul = strtoul(value, &eov, 0);
     if (success)
-        *success = !*eov;
+        *success = (*eov == '\0');
     return *eov ? 0 : ul;
 }
 
@@ -163,7 +163,7 @@ double conf_parse_float(const char *value, int *success)
 
     d = strtod(value, &eov);
     if (success)
-        *success = !*eov;
+        *success = (*eov == '\0');
     return *eov ? 0 : d;
 }
 
@@ -212,7 +212,7 @@ unsigned int conf_parse_interval(const char *value, int *success)
     }
 out:
     if (success)
-        *success = !*pos;
+        *success = (*pos == '\0');
     return total + partial;
 }
 
@@ -245,7 +245,7 @@ unsigned int conf_parse_volume(const char *value, int *success)
         break;
     }
     if (success)
-        *success = !*pos;
+        *success = (*pos == '\0');
     return total + partial;
 }
 

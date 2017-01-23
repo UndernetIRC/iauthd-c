@@ -306,6 +306,9 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
 	    iauth_xquery_set_account(req, reply + 3);
 	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
 		req->holds--;
+	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST)
+		|| BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
+		iauth_user_mode(req, "+x");
 	    /* TODO: maybe count clients who get account stamps *and*
 	     * NO responses (this would require different refcounting
 	     * on NO responses).
@@ -320,9 +323,6 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
 
 	if (cli->ref_mask == 0) {
 	    --req->soft_holds;
-	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST)
-	        || BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
-		iauth_user_mode(req, "+x");
 	    iauth_check_request(req);
 	}
     } else if (0 == memcmp(reply, "NO ", 3)) {

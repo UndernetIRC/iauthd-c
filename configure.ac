@@ -24,7 +24,7 @@
 
 dnl General initialization.
 AC_PREREQ([2.63])
-AC_INIT([iauthd-c], [0.1], [coder-com@undernet.org])
+AC_INIT([iauthd-c], [1.0], [coder-com@undernet.org])
 AC_CONFIG_AUX_DIR([autoconf])
 AC_CONFIG_MACRO_DIR([autoconf])
 AC_CONFIG_HEADERS([autoconf.h])

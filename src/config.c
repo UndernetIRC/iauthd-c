@@ -679,13 +679,17 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
         parse->curr--;
         string = conf_parse_string(parse);
         ch = conf_parse_whitespace(parse, 1);
-        if (ch == ';' || ch == '\n') {
+        if (ch == ';' || ch == '\n' || ch == '}') {
             struct conf_node_string *node;
 
             parse->curr--;
             node = conf_parse_get_child(parent, name, CONF_STRING, sizeof(*node));
             xfree(node->value);
             node->value = string;
+	    if ((ch == '}') && (parent != &parse->root)) {
+		parse->curr--;
+		return;
+	    }
     	} else if (ch == ',') {
             struct conf_node_string_list *node;
             struct string_vector new_value;
@@ -712,9 +716,6 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
             }
             conf_set_string_list_value(node, &new_value);
             string_vector_clear_int(&new_value);
-        } else if ((ch == '}') && (parent != &parse->root)) {
-            parse->curr--;
-            return;
         } else {
             struct conf_node_inaddr *node;
             char *service;

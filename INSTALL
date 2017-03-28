@@ -28,7 +28,9 @@ under /usr/local.  The "configure" script takes a number of optional
 parameters; these can be listed by running "./configure --help".
 (Typically, the only parameter most users need is --prefix=$HOME,
 which is strongly recommended and eliminates the need for "sudo".
-This documentation assumes the prefix is /usr/local.)
+This documentation assumes the prefix is /usr/local.  If libevent or
+pkg-config is installed in /usr/local, you may need to also pass
+CPPFLAGS=-I/usr/local LDFLAGS=-L/usr/local to the configure script.)
 
 This software supports "out-of-tree" (sometimes called vpath) builds,
 where the compiled files are in a separate directory tree than the

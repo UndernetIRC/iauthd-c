@@ -77,7 +77,7 @@ iauth_class {
     // will pass for all clients who reach it.  If no class name is
     // listed, the rule name is used as the class name, but this is
     // seldom useful because the class names are usually not in the
-    // same order one would want to check rules3.
+    // same order one would want to check rules.
     "r001" {
         class trusted
         username "joe-oper"

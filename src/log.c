@@ -104,8 +104,12 @@ static struct log_destination *log_destination_open(const char *name)
         return NULL;
     }
     ld = vtbl->open(sep ? sep + 1 : NULL);
-    if (!ld)
+    if (!ld) {
+        if (log_core)
+            log_message(log_core, LOG_FATAL, "Log open failed for %s:%s",
+                type_name, sep ? sep + 1 : "(null)");
         return NULL;
+    }
     if (!ld->vtbl)
         ld->vtbl = vtbl;
     ld->name = xstrdup(name);

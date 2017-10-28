@@ -585,7 +585,7 @@ static void *conf_parse_get_child(struct conf_node_object *parent, char *name, e
 {
     struct conf_node_base *base;
     struct set_node *snode;
-    struct set_node *snode2;
+    void *existing;
 
     assert(total >= sizeof(*base));
     snode = set_node_alloc(total);
@@ -593,11 +593,11 @@ static void *conf_parse_get_child(struct conf_node_object *parent, char *name, e
     base->name = name;
     base->parent = parent;
     base->type = type;
-    snode2 = set_find(&parent->contents, base);
-    if (snode2) {
+    existing = set_find(&parent->contents, base);
+    if (existing) {
         xfree(snode);
         xfree(name);
-        base = set_node_data(snode2);
+        base = existing;
     } else {
         set_insert(&parent->contents, snode);
     }

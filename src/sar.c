@@ -1165,9 +1165,13 @@ static struct sar_request *sar_getaddr_request(struct sar_request *req)
     state = (struct sar_getaddr_state*)(req + 1);
 
     /* If we can and should, append the current search domain. */
-    if (state->search_pos < conf.sar_search->value.used)
-        snprintf(full_name, sizeof(full_name), "%s.%s", state->full_name, conf.sar_search->value.vec[state->search_pos]);
-    else if (state->search_pos == conf.sar_search->value.used)
+    if (state->search_pos < conf.sar_search->value.used) {
+        int len = snprintf(full_name, sizeof(full_name), "%s.%s", state->full_name, conf.sar_search->value.vec[state->search_pos]);
+        if (len < 0 || (size_t)len >= sizeof(full_name)) {
+            log_message(sar_log, LOG_ERROR, "sar_getaddr_request({id=%d}): name too long to append search domain(s)", req->id);
+            return NULL;
+        }
+    } else if (state->search_pos == conf.sar_search->value.used)
         strlcpy(full_name, state->full_name, sizeof(full_name));
     else {
         log_message(sar_log, LOG_DEBUG, "sar_getaddr_request({id=%d}): failed", req->id);

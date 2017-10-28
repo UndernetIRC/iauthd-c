@@ -91,9 +91,13 @@ static struct log_destination *log_destination_open(const char *name)
     }
     sep = strchr(name, ':');
     if (sep) {
+        if ((size_t)(sep - name) >= sizeof(type_name))
+            log_message(log_core, LOG_FATAL, "Overlong vtable type in %s", name);
         memcpy(type_name, name, sep - name);
         type_name[sep - name] = '\0';
     } else {
+        if (strlen(name) >= sizeof(type_name))
+            log_message(log_core, LOG_FATAL, "Overlong vtable type %s", name);
         strcpy(type_name, name);
     }
     tmp = type_name;

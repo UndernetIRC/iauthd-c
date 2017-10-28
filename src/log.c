@@ -99,15 +99,13 @@ static struct log_destination *log_destination_open(const char *name)
     tmp = type_name;
     vtbl = set_find(&log_vtables, &tmp);
     if (!vtbl) {
-        if (log_core)
-            log_message(log_core, LOG_FATAL, "Unknown vtable type %s", type_name);
+        log_message(log_core, LOG_FATAL, "Unknown vtable type %s", type_name);
         return NULL;
     }
     ld = vtbl->open(sep ? sep + 1 : NULL);
     if (!ld) {
-        if (log_core)
-            log_message(log_core, LOG_FATAL, "Log open failed for %s:%s",
-                type_name, sep ? sep + 1 : "(null)");
+        log_message(log_core, LOG_FATAL, "Log open failed for %s:%s",
+            type_name, sep ? sep + 1 : "(null)");
         return NULL;
     }
     if (!ld->vtbl)
@@ -149,7 +147,7 @@ void log_vmessage(struct log_type *type, enum log_severity sev, const char *form
     unsigned int ii, count;
     int res;
 
-    assert(type != NULL);
+    assert(type != NULL || sev == LOG_FATAL);
     assert(format != NULL);
     assert(sev < LOG_NUM_SEVERITIES);
 
@@ -163,19 +161,21 @@ void log_vmessage(struct log_type *type, enum log_severity sev, const char *form
     } else
         message = buff;
 
-    /* Call each backend for that log severity. */
-    for (ii = count = 0; ii < type->logs[sev].used; ++ii, ++count) {
-        struct log_destination *ld = type->logs[sev].vec[ii];
-        ld->vtbl->log(ld, type, sev, message);
-    }
-    for (ii = 0; ii < log_default->logs[sev].used; ++ii, ++count) {
-        struct log_destination *ld = log_default->logs[sev].vec[ii];
-        ld->vtbl->log(ld, type, sev, message);
+    if (type) {
+        /* Call each backend for that log severity. */
+        for (ii = count = 0; ii < type->logs[sev].used; ++ii, ++count) {
+            struct log_destination *ld = type->logs[sev].vec[ii];
+            ld->vtbl->log(ld, type, sev, message);
+        }
+        for (ii = 0; ii < log_default->logs[sev].used; ++ii, ++count) {
+            struct log_destination *ld = log_default->logs[sev].vec[ii];
+            ld->vtbl->log(ld, type, sev, message);
+        }
     }
 
     /* Also print to stdout if appropriate. */
     if ((log_verbosity > 1)
-	|| ((log_verbosity == 1) && (sev >= LOG_WARNING))) {
+        || ((log_verbosity == 1) && (sev >= LOG_WARNING))) {
         char ts[32];
 
         if (conf.verbose_timestamp->parsed.p_boolean) {

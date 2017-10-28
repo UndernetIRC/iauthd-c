@@ -452,7 +452,6 @@ static int conf_parse_whitespace(struct conf_parse *parse, int care_eof)
     while (*parse->curr) {
         int c = *parse->curr++, d;
         if (c == '\n') {
-        handle_eof:
             parse->line_start = parse->curr;
             parse->line_num++;
             if (care_eof)
@@ -468,23 +467,25 @@ static int conf_parse_whitespace(struct conf_parse *parse, int care_eof)
             while (1) {
                 do {
                     c = *parse->curr++;
-                    if (c == '\n')
-                        goto handle_eof;
+                    if (c == '\n') {
+                        parse->line_start = parse->curr;
+                        parse->line_num++;
+                    }
                 } while (c != '\0' && c != '*');
-                if (c == '\0')
+                if (c == '\0') {
+                    parse->curr--;
                     return c;
-                c = *parse->curr++;
-                if (c == '\0' || c == '/')
+                }
+                if (*parse->curr == '/')
                     break;
-                if (c == '\n')
-                    goto handle_eof;
             }
         } else if (d == '/') {
             do {
                 c = *parse->curr++;
             } while (c != '\0' && c != '\n');
-            if (c == '\n')
-                goto handle_eof;
+            parse->curr--;
+            if (c == '\0')
+                break;
         } else {
             parse->curr--;
             return c;

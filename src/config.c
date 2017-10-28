@@ -507,12 +507,12 @@ static char *conf_parse_string(struct conf_parse *parse)
     start = parse->curr - 1;
     memset(&sbuf, 0, sizeof(sbuf));
     if (ch == '"') {
-        /* Scan quoted string. */
+        /* Scan quoted string to find end point. */
         for (end = start + 1;
              *end != '\0' && *end != '"';
              ++end)
-            if (*end == '\\')
-                end++;
+            if (*end == '\\' && *++end == '\0')
+                break;
         if (*end == '\0')
             longjmp(parse->env, PARSE_PREMATURE_EOF);
         /* Allocate buffer. */

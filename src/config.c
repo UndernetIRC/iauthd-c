@@ -671,6 +671,8 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
             ch = conf_parse_whitespace(parse, 0);
             if (ch == '}')
                 break;
+            if (ch == '\0')
+                longjmp(parse->env, PARSE_PREMATURE_EOF);
             parse->curr--;
             conf_parse_entry(parse, node);
         }

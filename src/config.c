@@ -547,13 +547,13 @@ static char *conf_parse_string(struct conf_parse *parse)
                     sbuf.vec[sbuf.used++] = '\v';
                     break;
                 case 'x':
-                    if (end[2] == '\0') {
+                    if (!ct_isxdigit(end[2])) {
                         /* do nothing */
-                    } else if (end[3] == '\0') {
+                    } else if (!ct_isxdigit(end[3])) {
                         end++;
                     } else {
                         sbuf.vec[sbuf.used++] = (ct_xdigit_val(end[2]) << 4)
-                            || ct_xdigit_val(end[3]);
+                            | ct_xdigit_val(end[3]);
                         end += 2;
                     }
                     break;

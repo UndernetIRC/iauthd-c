@@ -1304,7 +1304,7 @@ struct sar_request *sar_getaddr(const char *node, const char *service, const str
 
     /* Translate socket type to internal protocol. */
     switch (hints.ai_socktype) {
-    case 0: hints.ai_socktype = SOCK_STREAM; /* and fall through */
+    case 0: hints.ai_socktype = SOCK_STREAM; /* fall through */
     case SOCK_STREAM: proto = SERVICE_TCP; break;
     case SOCK_DGRAM: proto = SERVICE_UDP; break;
     default:

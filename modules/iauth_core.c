@@ -582,7 +582,7 @@ static void parse_hurry_up(struct iauth_request *req, char class[])
     struct iauth_module *plugin;
     struct set_node *node;
 
-    if (req->class == '\0')
+    if (req->class[0] == '\0')
         strncpy(req->class, class, CLASSLEN);
     BITSET_OR(req->flags, req->flags, iauth_flags);
     BITSET_SET(req->flags, IAUTH_GOT_HURRY_UP);

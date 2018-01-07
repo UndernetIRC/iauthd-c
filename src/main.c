@@ -280,10 +280,10 @@ int main(int argc, char *argv[])
     }
 
     /* Handle signals. */
-    evsignal_set(&sighup_evt, SIGHUP, break_loop, NULL);
+    signal_set(&sighup_evt, SIGHUP, break_loop, NULL);
     if (event_add(&sighup_evt, NULL))
         log_message(log_core, LOG_FATAL, "Unable to handle SIGHUP handler.");
-    evsignal_set(&sigusr1_evt, SIGUSR1, reload_config, NULL);
+    signal_set(&sigusr1_evt, SIGUSR1, reload_config, NULL);
     if (event_add(&sigusr1_evt, NULL))
         log_message(log_core, LOG_FATAL, "Unable to handle SIGUSR1 handler.");
 

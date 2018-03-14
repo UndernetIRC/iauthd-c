@@ -44,7 +44,8 @@
  * - "class" (string, default: the object name) names the cclass that
  *   matching clients should be assigned to
  * - "account" (string) must match the assigned account stamp
- * - "address" (inaddr) must match the client's IP address
+ * - "address" (string) must match the client's IP address; this
+ *   supports netmasks by using syntax like 127.0.0.0/8.
  * - "username" (string) must match the client's trusted username
  * - "hostname" (string) must match the client's resolved hostname
  * - "xreply_ok" (string) must match the name of a service that sends

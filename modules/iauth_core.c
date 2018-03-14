@@ -577,13 +577,11 @@ static void parse_nick(struct iauth_request *req, char nick[])
     iauth_check_request(req);
 }
 
-static void parse_hurry_up(struct iauth_request *req, char class[])
+static void parse_hurry_up(struct iauth_request *req)
 {
     struct iauth_module *plugin;
     struct set_node *node;
 
-    if (req->class[0] == '\0')
-        strncpy(req->class, class, CLASSLEN);
     BITSET_OR(req->flags, req->flags, iauth_flags);
     BITSET_SET(req->flags, IAUTH_GOT_HURRY_UP);
     req->state = IAUTH_HURRY;
@@ -738,7 +736,7 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
             parse_nick(req, argv[1]);
             break;
         case 'H':
-            parse_hurry_up(req, argv[1]);
+            parse_hurry_up(req);
             break;
         case 'T':
             parse_registered(req, 1);

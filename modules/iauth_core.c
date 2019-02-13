@@ -671,12 +671,17 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
     char *argv[16];
     char *line;
     char *sep;
-    size_t argc;
+    size_t argc, len;
     int id;
 
     /* Parse out the start of the line (simple, standard bits). */
     while ((line = evbuffer_readline(buf->input)) != NULL)
     {
+        len = strlen(line);
+        if (len > 0 && line[len-1] == '\r')
+        {
+                line[len-1] = '\0';
+        }
         log_message(iauth_log, LOG_DEBUG, "> %s", line);
         id = strtol(line, &sep, 10);
 

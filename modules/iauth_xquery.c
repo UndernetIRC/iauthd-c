@@ -401,6 +401,7 @@ static void iauth_xquery_check(struct iauth_request *req,
 		username[0] = '~';
 		strncpy(username + 1, req->cli_username, USERLEN-1);
 	    }
+	    username[USERLEN] = '\0';
 	}
 
 	hostname = req->hostname[0] ? req->hostname : req->text_addr;

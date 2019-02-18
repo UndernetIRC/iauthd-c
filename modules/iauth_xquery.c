@@ -397,6 +397,8 @@ static void iauth_xquery_check(struct iauth_request *req,
 	if ((srv->type != LOGIN) && (username[0] == '\0')) {
 	    if (req->auth_username[0] != '\0') {
 		strncpy(username, req->auth_username, USERLEN);
+	    } else if (req->cli_username[0] == '~') {
+		strncpy(username, req->cli_username, USERLEN);
 	    } else if (req->cli_username[0] != '\0') {
 		username[0] = '~';
 		strncpy(username + 1, req->cli_username, USERLEN-1);

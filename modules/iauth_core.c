@@ -425,6 +425,37 @@ static void iauth_timeout(evutil_socket_t sock, short event, void *datum)
     (void)sock; (void)event;
 }
 
+static int iauth_collect_config()
+{
+    struct iauth_module *mod;
+    struct set_node *node;
+    int count = 0;
+
+    iauth_send(NULL, "a");
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        mod = set_node_data(node);
+        if (mod->get_config) {
+            mod->get_config();
+            count++;
+        }
+    }
+
+    return count;
+}
+
+static void iauth_collect_stats()
+{
+    struct iauth_module *mod;
+    struct set_node *node;
+
+    iauth_send(NULL, "a");
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        mod = set_node_data(node);
+        if (mod->get_stats)
+                mod->get_stats();
+    }
+}
+
 static void parse_new_client(int id, int argc, char *argv[])
 {
     struct iauth_module *plugin;
@@ -665,6 +696,16 @@ static void parse_x_unlinked(int argc, char *argv[])
     }
 }
 
+static void parse_info_request(int argc, char *argv[])
+{
+    if (argc < 2)
+        return;
+    else if (!strcmp(argv[1], "config"))
+        iauth_collect_config();
+    else if (!strcmp(argv[1], "stats"))
+        iauth_collect_stats();
+}
+
 static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
 {
     struct iauth_request *req;
@@ -680,7 +721,7 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
         len = strlen(line);
         if (len > 0 && line[len-1] == '\r')
         {
-                line[len-1] = '\0';
+            line[len-1] = '\0';
         }
         log_message(iauth_log, LOG_DEBUG, "> %s", line);
         id = strtol(line, &sep, 10);
@@ -696,8 +737,8 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
             }
             argv[argc++] = sep;
             for (; (*sep != '\0') && !isspace(*sep); ++sep) {}
-	    if (*sep == '\0')
-		break;
+            if (*sep == '\0')
+                break;
             *sep++ = '\0';
         }
         if (argc < ARRAY_LENGTH(argv))
@@ -760,6 +801,10 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
             /* id is always -1 with current ircu. */
             parse_x_unlinked(argc, argv);
             break;
+        case '?':
+            /* id is always -1 with current ircu. */
+            parse_info_request(argc, argv);
+            break;
         }
     }
 }
@@ -778,7 +823,8 @@ static void iauth_startup(UNUSED_ARG(int fd), UNUSED_ARG(short evt), UNUSED_ARG(
     int pos;
     int ii;
 
-    iauth_send(NULL, "V %s %s", PACKAGE_NAME, iauthd_version);
+    iauth_send(NULL, "V :%s %s", PACKAGE_NAME, iauthd_version);
+    iauth_collect_config();
 
     calc_iauth_flags();
 

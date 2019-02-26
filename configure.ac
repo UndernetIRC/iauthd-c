@@ -41,6 +41,7 @@ dnl Check for toolchain utilities.
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
+AC_PROG_MKDIR_P
 
 dnl Compiler/runtime feature checks.
 AC_C_CONST

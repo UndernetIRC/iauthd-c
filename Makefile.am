@@ -25,9 +25,11 @@
 AUTOMAKE_OPTIONS = gnu dist-bzip2 subdir-objects nostdinc 1.6
 ACLOCAL_AMFLAGS = -I autoconf
 
+LOGDIR="$(localstatedir)/log"
+
 STRICT_CFLAGS = @STRICT_CFLAGS@
 AM_CFLAGS = $(STRICT_CFLAGS) -I$(top_srcdir) -I$(top_builddir)
-AM_CPPFLAGS = -DSYSCONFDIR="\"$(sysconfdir)\"" -DMODULESDIR="\"$(pkglibexecdir)\"" -DLOGDIR="\"$(localstatedir)/log\""
+AM_CPPFLAGS = -DSYSCONFDIR="\"$(sysconfdir)\"" -DMODULESDIR="\"$(pkglibexecdir)\"" -DLOGDIR="\"$(LOGDIR)\""
 AM_LDFLAGS = -module -avoid-version -export-dynamic
 EXTRA_DIST =
 
@@ -35,3 +37,6 @@ include $(srcdir)/doc/Makefile.frag
 include $(srcdir)/src/Makefile.frag
 include $(srcdir)/modules/Makefile.frag
 include $(srcdir)/tests/Makefile.frag
+
+install-data-local:
+	$(MKDIR_P) "$(LOGDIR)"

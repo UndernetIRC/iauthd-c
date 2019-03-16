@@ -50,6 +50,8 @@
  * - "hostname" (string) must match the client's resolved hostname
  * - "xreply_ok" (string) must match the name of a service that sends
  *   an XREPLY OK for the client
+ * - "trust_username" (boolean) is whether to trust the client's claimed
+ *   username, even if they are not running identd
  *
  * Rules are applied in alphabetic (case-insensitive) order of their
  * object names, stopping after the first rule that assigns a class.
@@ -72,6 +74,7 @@ struct iauth_class_rule {
     irc_inaddr address;
     unsigned int address_bits;
     unsigned int assigned;
+    int trust_username;
 };
 
 DECLARE_VECTOR(iauth_class_rules, struct iauth_class_rule);
@@ -152,9 +155,12 @@ CONF_UPDATE_HOOK(iauth_class_conf_changed)
         str = conf_get_child(obj, "hostname", CONF_STRING);
         if (str)
             rule->hostname = xstrdup(str->value);
-	str = conf_get_child(obj, "xreply_ok", CONF_STRING);
-	if (str)
-	    rule->xreply_ok = xstrdup(str->value);
+        str = conf_get_child(obj, "xreply_ok", CONF_STRING);
+        if (str)
+            rule->xreply_ok = xstrdup(str->value);
+        str = conf_get_child(obj, "trust_username", CONF_STRING_BOOLEAN);
+        if (str)
+            rule->trust_username = str->parsed.p_boolean;
 
         /* Increment the number of rules in the new set. */
         new_rules.used++;
@@ -244,7 +250,10 @@ static IAUTH_RULE_FUNC(iauth_class_rule_check)
         return 0;
 
     if (rule->xreply_ok && (iauth_xreply_ok(req, rule->xreply_ok) <= 0))
-	return 0;
+        return 0;
+
+    if (rule->trust_username)
+        iauth_trust_username(req, req->cli_username);
 
     strlcpy(req->class, rule->class ? rule->class : rule->name, CLASSLEN);
     return 1;

@@ -158,9 +158,9 @@ CONF_UPDATE_HOOK(iauth_class_conf_changed)
         str = conf_get_child(obj, "xreply_ok", CONF_STRING);
         if (str)
             rule->xreply_ok = xstrdup(str->value);
-        str = conf_get_child(obj, "trust_username", CONF_STRING_BOOLEAN);
+        str = conf_get_child(obj, "trust_username", CONF_STRING);
         if (str)
-            rule->trust_username = str->parsed.p_boolean;
+            rule->trust_username = conf_parse_boolean(str->value, 0);
 
         /* Increment the number of rules in the new set. */
         new_rules.used++;
@@ -252,8 +252,8 @@ static IAUTH_RULE_FUNC(iauth_class_rule_check)
     if (rule->xreply_ok && (iauth_xreply_ok(req, rule->xreply_ok) <= 0))
         return 0;
 
-    if (rule->trust_username)
-        iauth_trust_username(req, req->cli_username);
+    if (rule->trust_username && (req->cli_username[0] == '~'))
+        iauth_trust_username(req, req->cli_username + 1);
 
     strlcpy(req->class, rule->class ? rule->class : rule->name, CLASSLEN);
     return 1;

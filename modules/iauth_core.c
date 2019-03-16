@@ -311,15 +311,19 @@ void iauth_x_query(const char server[], const char routing[], const char fmt[], 
 void iauth_force_username(struct iauth_request *req, const char username[])
 {
     iauth_send(req, "o %s", username);
-    BITSET_SET(req->flags, IAUTH_GOT_IDENT);
-    iauth_check_request(req);
+    if (!BITSET_GET(req->flags, IAUTH_GOT_IDENT)) {
+        BITSET_SET(req->flags, IAUTH_GOT_IDENT);
+        iauth_check_request(req);
+    }
 }
 
 void iauth_trust_username(struct iauth_request *req, const char username[])
 {
     iauth_send(req, "U %s", username);
-    BITSET_SET(req->flags, IAUTH_GOT_IDENT);
-    iauth_check_request(req);
+    if (!BITSET_GET(req->flags, IAUTH_GOT_IDENT)) {
+        BITSET_SET(req->flags, IAUTH_GOT_IDENT);
+        iauth_check_request(req);
+    }
 }
 
 void iauth_weak_username(struct iauth_request *req, const char username[])
@@ -332,8 +336,10 @@ void iauth_set_hostname(struct iauth_request *req, const char hostname[])
 {
     iauth_send(req, "N %s", hostname);
     strncpy(req->hostname, hostname, HOSTLEN);
-    BITSET_SET(req->flags, IAUTH_GOT_HOSTNAME);
-    iauth_check_request(req);
+    if (!BITSET_GET(req->flags, IAUTH_GOT_HOSTNAME)) {
+        BITSET_SET(req->flags, IAUTH_GOT_HOSTNAME);
+        iauth_check_request(req);
+    }
 }
 
 void iauth_set_ip(struct iauth_request *req, const union irc_inaddr *addr)

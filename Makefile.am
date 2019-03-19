@@ -29,7 +29,7 @@ LOGDIR="$(localstatedir)/log"
 
 STRICT_CFLAGS = @STRICT_CFLAGS@
 AM_CFLAGS = $(STRICT_CFLAGS) -I$(top_srcdir) -I$(top_builddir)
-AM_CPPFLAGS = -DSYSCONFDIR="\"$(sysconfdir)\"" -DMODULESDIR="\"$(pkglibexecdir)\"" -DLOGDIR="\"$(LOGDIR)\""
+AM_CPPFLAGS = -DSYSCONFDIR="\"$(sysconfdir)\"" -DMODULESDIR="\"$(pkglibdir)\"" -DLOGDIR="\"$(LOGDIR)\""
 AM_LDFLAGS = -module -avoid-version -export-dynamic
 EXTRA_DIST =
 

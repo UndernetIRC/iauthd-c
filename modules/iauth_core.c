@@ -439,7 +439,7 @@ static int iauth_collect_config()
 
     iauth_send(NULL, "a");
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
-        mod = set_node_data(node);
+        mod = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (mod->get_config) {
             mod->get_config();
             count++;
@@ -456,7 +456,7 @@ static void iauth_collect_stats()
 
     iauth_send(NULL, "a");
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
-        mod = set_node_data(node);
+        mod = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (mod->get_stats)
                 mod->get_stats();
     }

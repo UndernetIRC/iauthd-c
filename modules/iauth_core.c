@@ -454,7 +454,7 @@ static void iauth_collect_stats()
     struct iauth_module *mod;
     struct set_node *node;
 
-    iauth_send(NULL, "a");
+    iauth_send(NULL, "s");
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         mod = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (mod->get_stats)

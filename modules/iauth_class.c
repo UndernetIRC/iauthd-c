@@ -217,7 +217,7 @@ static void iauth_class_report_stats(void)
 {
     iauth_class_foreach_rule(iauth_class_rule_stats, NULL);
 
-    iauth_report_stats(&iauth_class, "%u clients already had classes, %f assigned (in %f+/-%f usec), %f unassigned (in %f+/-%f usec)",
+    iauth_report_stats(&iauth_class, "%u clients already had classes, %.0f assigned (in %f+/-%f usec), %.0f unassigned (in %f+/-%f usec)",
                        iauth_class_already_assigned,
                        iauth_class_assigned.n,
                        iauth_class_assigned.mean,

@@ -256,6 +256,7 @@ static IAUTH_RULE_FUNC(iauth_class_rule_check)
         iauth_trust_username(req, req->cli_username + 1);
 
     strlcpy(req->class, rule->class ? rule->class : rule->name, CLASSLEN);
+    ++rule->assigned;
     return 1;
 }
 

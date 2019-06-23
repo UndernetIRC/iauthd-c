@@ -54,6 +54,13 @@ static struct conf_node_string *iauth_conf_timeout;
 /** Last assigned serial number. */
 static unsigned int iauth_serial;
 
+/** Statistics for this module. */
+static struct {
+    unsigned long n_req_allocs;
+    unsigned long n_req_frees;
+    unsigned long n_req_data_frees;
+} stats;
+
 static void parse_registered(struct iauth_request *req, int from_ircd);
 
 /** Sends a message to the IRCD related to \a req.
@@ -422,6 +429,7 @@ static void iauth_req_cleanup(void *ptr)
 {
     struct iauth_request *req = ptr;
     event_del(&req->timeout);
+    stats.n_req_data_frees += set_size(&req->data);
     set_clear(&req->data, 0);
 }
 
@@ -457,6 +465,8 @@ static void iauth_collect_stats()
     struct set_node *node;
 
     iauth_send(NULL, "s");
+    iauth_send(NULL, "A iauth :%lu-%lu reqs alloc; %lu data frees",
+        stats.n_req_allocs, stats.n_req_frees, stats.n_req_data_frees);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         mod = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (mod->get_stats)
@@ -475,6 +485,7 @@ static void parse_new_client(int id, int argc, char *argv[])
         return;
 
     /* Allocate, populate and index the request descriptor. */
+    stats.n_req_allocs++;
     node = set_node_alloc(sizeof(*req));
     req = set_node_data(node);
     req->client = id;
@@ -514,6 +525,7 @@ static void parse_disconnect(struct iauth_request *req)
             plugin->disconnect(req);
     }
     set_remove(iauth_reqs, req, 0);
+    stats.n_req_frees++;
 }
 
 static void parse_hostname(struct iauth_request *req, char hostname[])
@@ -644,6 +656,7 @@ static void parse_registered(struct iauth_request *req, int from_ircd)
             plugin->registered(req, from_ircd);
     }
     set_remove(iauth_reqs, req, 0);
+    stats.n_req_frees++;
 }
 
 static void parse_error(struct iauth_request *req, int argc, char *argv[])

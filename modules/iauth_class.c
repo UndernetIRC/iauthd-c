@@ -107,8 +107,10 @@ static void iauth_class_free_rules(void)
         rule = &conf.rules.vec[ii];
         xfree(rule->name);
         xfree(rule->class);
+        xfree(rule->account);
         xfree(rule->username);
         xfree(rule->hostname);
+        xfree(rule->xreply_ok);
     }
 
     xfree(conf.rules.vec);

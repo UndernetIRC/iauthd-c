@@ -143,7 +143,7 @@ void iauth_register_module(struct iauth_module *module)
  */
 void iauth_unregister_module(struct iauth_module *plugin)
 {
-    set_remove(iauth_modules, plugin, 1);
+    set_remove(iauth_modules, &plugin->owner, 1);
     calc_iauth_flags();
 }
 

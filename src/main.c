@@ -69,14 +69,12 @@ static int do_arg_help(UNUSED_ARG(const char *arg))
             fprintf(stdout, "  -%c               %s\n", args[ii].short_arg, args[ii].description);
         }
     }
-    call_exit_funcs();
     exit(EXIT_SUCCESS);
 }
 
 static int do_arg_version(UNUSED_ARG(const char *arg))
 {
     fprintf(stdout, PACKAGE_STRING ", revision %s\n", iauthd_version);
-    call_exit_funcs();
     exit(EXIT_SUCCESS);
 }
 
@@ -228,6 +226,7 @@ static void reload_config(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_AR
 int main(int argc, char *argv[])
 {
     iauthd_executable = argv[0];
+    atexit(call_exit_funcs);
     parse_arguments(argc, argv);
 
     setenv("TZ", "UTC", 1);

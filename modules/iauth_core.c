@@ -863,6 +863,7 @@ void module_constructor(UNUSED_ARG(const char name[]))
 
 void module_destructor(void)
 {
+    bufferevent_free(iauth_in);
     set_clear(iauth_reqs);
     free(iauth_reqs);
     set_clear(iauth_modules);

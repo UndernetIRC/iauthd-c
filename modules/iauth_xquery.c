@@ -187,6 +187,12 @@ static struct log_type *iauth_xquery_log;
 static struct iauth_xquery_services iauth_xquery_services;
 static struct iauth_flagset iauth_xquery_flags[4];
 
+static struct {
+    unsigned long n_cli_allocs;
+    unsigned long n_srv_allocs;
+    unsigned long n_srv_frees;
+} stats;
+
 DEFINE_VECTOR(iauth_xquery_services, struct iauth_xquery_service *);
 
 static const char *type_text(enum iauth_xquery_type t)
@@ -227,6 +233,9 @@ static void iauth_xquery_report_stats(void)
 			   srv->good_acct, srv->good_no_acct,
 			   srv->bad, srv->bad_acct, srv->unlinked);
     }
+
+    iauth_report_stats(&iauth_xquery, "%lu-%lu srv alloc, %lu clients alloc",
+        stats.n_srv_allocs, stats.n_srv_frees, stats.n_cli_allocs);
 }
 
 static void iauth_xquery_unref(unsigned int ii)
@@ -243,6 +252,7 @@ static void iauth_xquery_unref(unsigned int ii)
     /* If not, free it. */
     iauth_xquery_services.vec[ii] = NULL;
     xfree(srv);
+    stats.n_srv_frees++;
 }
 
 static void iauth_xquery_set_account(struct iauth_request *req,
@@ -351,6 +361,7 @@ static void iauth_xquery_new_client(struct iauth_request *req)
     struct iauth_xquery_client *cli;
     struct set_node *node;
 
+    stats.n_cli_allocs++;
     node = set_node_alloc(sizeof(*cli));
     cli = set_node_data(node);
     cli->key = &iauth_xquery;
@@ -558,6 +569,7 @@ static void iauth_xquery_config_service(const char *name, const char *type)
 
     /* If not, add it. */
     if (ii == iauth_xquery_services.used) {
+	stats.n_srv_allocs++;
 	srv = xmalloc(sizeof(*srv) + strlen(name));
 	strcpy(srv->name, name);
 

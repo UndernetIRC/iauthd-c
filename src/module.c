@@ -168,6 +168,7 @@ void module_depends(const char *name, ...)
         if (!other)
             log_message(log_core, LOG_FATAL, "Module %s depends on unloadable module %s.", loading_module->name, name);
         const_string_vector_append(&loading_module->depends, name);
+        const_string_vector_append(&other->rdepends, loading_module->name);
     }
     va_end(args);
 }

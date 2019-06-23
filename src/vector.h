@@ -52,7 +52,7 @@ void STRUCTNAME##_init(struct STRUCTNAME *vec, unsigned int len) {\
 void STRUCTNAME##_reserve(struct STRUCTNAME *vec, unsigned int len) {\
   if (vec->size == 0)\
     vec->size = len;\
-  else while (vec->size < len)                 \
+  else while (vec->size < len)\
     vec->size <<= 1;\
   vec->vec = xrealloc(vec->vec, vec->size*sizeof(vec->vec[0]));\
 }\

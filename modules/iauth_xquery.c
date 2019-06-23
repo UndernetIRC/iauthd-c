@@ -694,5 +694,11 @@ int iauth_xreply_ok(struct iauth_request *request, const char *service)
 
 void module_destructor(void)
 {
+    unsigned int ii;
+
+    for (ii = 0; ii < iauth_xquery_services.used; ++ii)
+        xfree(iauth_xquery_services.vec[ii]);
+    iauth_xquery_services_clear(&iauth_xquery_services);
+
     iauth_unregister_module(&iauth_xquery);
 }

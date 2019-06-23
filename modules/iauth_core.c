@@ -269,12 +269,13 @@ void iauth_set_debug_level(int level)
 
 void iauth_report_config(struct iauth_module *module, const char fmt[], ...)
 {
-    const size_t pfx_len = strlen("iauth_");
+    const char *const pfx = "iauth_";
+    const size_t pfx_len = strlen(pfx);
     const char *name = module->owner;
     va_list args;
     char config[1024];
 
-    if (0 == memcmp(name, "iauth_", pfx_len))
+    if (0 == memcmp(name, pfx, pfx_len))
         name += pfx_len;
     va_start(args, fmt);
     vsnprintf(config, sizeof(config), fmt, args);
@@ -284,12 +285,13 @@ void iauth_report_config(struct iauth_module *module, const char fmt[], ...)
 
 void iauth_report_stats(struct iauth_module *module, const char fmt[], ...)
 {
-    const size_t pfx_len = strlen("iauth_");
+    const char *const pfx = "iauth_";
+    const size_t pfx_len = strlen(pfx);
     const char *name = module->owner;
     va_list args;
     char stats[1024];
 
-    if (0 == memcmp(name, "iauth_", pfx_len))
+    if (0 == memcmp(name, pfx, pfx_len))
         name += pfx_len;
     va_start(args, fmt);
     vsnprintf(stats, sizeof(stats), fmt, args);

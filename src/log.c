@@ -329,9 +329,9 @@ static struct log_destination_vtable log_file_vtable = {
 
 static void log_cleanup(void)
 {
-    set_clear(&log_types);
-    set_clear(&log_destinations);
-    set_clear(&log_vtables);
+    set_clear(&log_types, 0);
+    set_clear(&log_destinations, 0);
+    set_clear(&log_vtables, 0);
 }
 
 static int log_parse_type_sevset(struct log_type **type, struct severity_bitset *sevset, const char *str_)

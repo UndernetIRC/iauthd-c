@@ -191,7 +191,7 @@ int set_remove(struct set *set, void *datum, int no_dispose)
     return 1;
 }
 
-void set_clear(struct set *set)
+void set_clear(struct set *set, int no_dispose)
 {
     struct set_node *it, *next;
     unsigned int ii;
@@ -202,7 +202,8 @@ void set_clear(struct set *set)
     set->root = NULL;
     for (ii = 0; it; it = next, ++ii) {
         next = set_next(it);
-        set_dispose_node(set, it);
+        if (!no_dispose)
+            set_dispose_node(set, it);
     }
     assert(ii == set->count);
     set->count = 0;

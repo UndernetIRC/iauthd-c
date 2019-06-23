@@ -67,7 +67,7 @@ void *set_find(struct set *set, const void *datum);
 struct set_node *set_first(struct set *set);
 struct set_node *set_lower(struct set *set, const void *datum);
 int set_remove(struct set *set, void *datum, int no_dispose);
-void set_clear(struct set *set);
+void set_clear(struct set *set, int no_dispose);
 
 /* Functions you might use for set cleanup or compare. */
 int set_compare_charp(const void *a_, const void *b_);

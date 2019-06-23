@@ -422,7 +422,7 @@ static void iauth_req_cleanup(void *ptr)
 {
     struct iauth_request *req = ptr;
     event_del(&req->timeout);
-    set_clear(&req->data);
+    set_clear(&req->data, 0);
 }
 
 static void iauth_timeout(evutil_socket_t sock, short event, void *datum)
@@ -866,8 +866,8 @@ void module_constructor(UNUSED_ARG(const char name[]))
 void module_destructor(void)
 {
     bufferevent_free(iauth_in);
-    set_clear(iauth_reqs);
+    set_clear(iauth_reqs, 0);
     free(iauth_reqs);
-    set_clear(iauth_modules);
+    set_clear(iauth_modules, 1);
     free(iauth_modules);
 }

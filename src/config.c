@@ -94,7 +94,7 @@ static void conf_object_cleanup(void *base_)
         break;
     }
     case CONF_OBJECT:
-        set_clear(&ENCLOSING_STRUCT(base, struct conf_node_object, base)->contents);
+        set_clear(&ENCLOSING_STRUCT(base, struct conf_node_object, base)->contents, 0);
         break;
     }
     xfree(base->name);
@@ -1027,7 +1027,7 @@ char *conf_update_node(const char *node_path_and_value)
             if (obj->base.hook)
                 obj->base.hook(&obj->base);
         }
-        set_clear(&parse.root.contents);
+        set_clear(&parse.root.contents, 0);
         break;
     case PARSE_PREMATURE_EOF:
         char_vector_append_printf(&cv, "Premature end of string.");
@@ -1089,7 +1089,7 @@ int conf_read(const char *filename)
             log_message(conf_log, LOG_ERROR, "Unhandled error on line %d of %s: %s", parse.line_num, filename, strerror(res));
         break;
     }
-    set_clear(&parse.root.contents);
+    set_clear(&parse.root.contents, 0);
     xfree((void*)parse.data);
     return res;
 }
@@ -1116,7 +1116,7 @@ void *conf_get_child(struct conf_node_object *parent, const char *name, enum con
 
 static void config_cleanup(void)
 {
-    set_clear(&conf_root.contents);
+    set_clear(&conf_root.contents, 0);
 }
 
 static void config_init(void)

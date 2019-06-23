@@ -2000,9 +2000,9 @@ static struct sar_family_helper sar_ipv6_helper = {
 static void sar_cleanup(void)
 {
     event_del(&sar_fd);
-    set_clear(&sar_nameservers);
-    set_clear(&services_byname);
-    set_clear(&services_byport);
+    set_clear(&sar_nameservers, 0);
+    set_clear(&services_byname, 0);
+    set_clear(&services_byport, 0);
 }
 
 void sar_init(void)

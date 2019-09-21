@@ -34,15 +34,16 @@ EXTRA_DIST += \
 
 check_LTLIBRARIES = \
 	tests/test_sar.la \
+	tests/test_set.la \
 	tests/tests.la
 
-tests_test_sar_la_SOURCES = \
-	tests/test_sar.c
-
+tests_test_sar_la_SOURCES = tests/test_sar.c
 tests_test_sar_la_LDFLAGS = $(TEST_LDFLAGS)
+
+tests_test_set_la_SOURCES = tests/test_set.c
+tests_test_set_la_LDFLAGS = $(TEST_LDFLAGS)
 
 tests_tests_la_SOURCES = \
 	tests/tests.h \
 	tests/tests.c
-
 tests_tests_la_LDFLAGS = $(TEST_LDFLAGS)

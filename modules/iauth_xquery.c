@@ -377,7 +377,7 @@ static void iauth_xquery_check(struct iauth_request *req,
     void *ptr;
     unsigned int ii;
     char routing[ROUTINGLEN];
-    char username[USERLEN+1];
+    char username[USERLEN+2];
 
     /* Find the client's state struct. */
     ptr = &iauth_xquery;
@@ -407,12 +407,12 @@ static void iauth_xquery_check(struct iauth_request *req,
         /* Populate username (if we need it). */
         if ((srv->type != LOGIN) && (username[0] == '\0')) {
             if (req->auth_username[0] != '\0') {
-                strncpy(username, req->auth_username, USERLEN);
+                strncpy(username, req->auth_username, USERLEN+1);
             } else if (req->cli_username[0] == '~') {
-                strncpy(username, req->cli_username, USERLEN);
+                strncpy(username, req->cli_username, USERLEN+1);
             } else if (req->cli_username[0] != '\0') {
                 username[0] = '~';
-                strncpy(username + 1, req->cli_username, USERLEN-1);
+                strncpy(username + 1, req->cli_username, USERLEN+1);
             }
             username[USERLEN] = '\0';
         }

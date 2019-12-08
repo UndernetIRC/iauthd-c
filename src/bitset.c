@@ -102,7 +102,7 @@ void bitset_clear(bitset_page_t *set, ...)
 
     va_start(args, set);
     while ((bit = va_arg(args, int)) >= 0)
-	set[BITSET_WORD_NUM(bit)] &= ~BITSET_WORD_MASK(bit);
+        set[BITSET_WORD_NUM(bit)] &= ~BITSET_WORD_MASK(bit);
     va_end(args);
 }
 
@@ -113,7 +113,7 @@ void bitset_set(bitset_page_t *set, ...)
 
     va_start(args, set);
     while ((bit = va_arg(args, int)) >= 0)
-	set[BITSET_WORD_NUM(bit)] |= BITSET_WORD_MASK(bit);
+        set[BITSET_WORD_NUM(bit)] |= BITSET_WORD_MASK(bit);
     va_end(args);
 }
 

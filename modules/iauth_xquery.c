@@ -199,7 +199,7 @@ static const char *type_text(enum iauth_xquery_type t)
 {
     unsigned idx = t;
     if (idx < sizeof(type_names) / sizeof(type_names[0]))
-	return type_names[idx];
+        return type_names[idx];
     return "unknown";
 }
 
@@ -208,13 +208,13 @@ static void iauth_xquery_report_config(void)
     unsigned int ii;
 
     for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	struct iauth_xquery_service *srv = iauth_xquery_services.vec[ii];
+        struct iauth_xquery_service *srv = iauth_xquery_services.vec[ii];
 
-	if (!srv)
-	    continue;
-	iauth_report_config(&iauth_xquery, "%c%s %s",
-			    srv->configured ? ' ' : '-',
-			    srv->name, type_text(srv->type));
+        if (!srv)
+            continue;
+        iauth_report_config(&iauth_xquery, "%c%s %s",
+                            srv->configured ? ' ' : '-',
+                            srv->name, type_text(srv->type));
     }
 }
 
@@ -223,15 +223,15 @@ static void iauth_xquery_report_stats(void)
     unsigned int ii;
 
     for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	struct iauth_xquery_service *srv = iauth_xquery_services.vec[ii];
+        struct iauth_xquery_service *srv = iauth_xquery_services.vec[ii];
 
-	if (!srv)
-	    continue;
-	iauth_report_stats(&iauth_xquery, "%c%s %u %u %u %u %u %u",
-			   srv->configured ? ' ' : '-',
-			   srv->name, srv->queries,
-			   srv->good_acct, srv->good_no_acct,
-			   srv->bad, srv->bad_acct, srv->unlinked);
+        if (!srv)
+            continue;
+        iauth_report_stats(&iauth_xquery, "%c%s %u %u %u %u %u %u",
+                           srv->configured ? ' ' : '-',
+                           srv->name, srv->queries,
+                           srv->good_acct, srv->good_no_acct,
+                           srv->bad, srv->bad_acct, srv->unlinked);
     }
 
     iauth_report_stats(&iauth_xquery, "%lu-%lu srv alloc, %lu clients alloc",
@@ -244,10 +244,10 @@ static void iauth_xquery_unref(unsigned int ii)
 
     /* Does this service (still) exist? */
     if (ii >= iauth_xquery_services.used)
-	return;
+        return;
     srv = iauth_xquery_services.vec[ii];
     if (!srv || (srv->refs > 0) || srv->configured)
-	return;
+        return;
 
     /* If not, free it. */
     iauth_xquery_services.vec[ii] = NULL;
@@ -256,18 +256,18 @@ static void iauth_xquery_unref(unsigned int ii)
 }
 
 static void iauth_xquery_set_account(struct iauth_request *req,
-				     const char account[])
+                                     const char account[])
 {
     int ii;
 
     for (ii = 0; (account[ii] != ' ') && (account[ii] != '\0') && (ii < ACCOUNTLEN); ++ii)
-	req->account[ii] = account[ii];
+        req->account[ii] = account[ii];
     for (; ii < ACCOUNTLEN+1; ++ii)
-	req->account[ii] = '\0';
+        req->account[ii] = '\0';
 }
 
 static void iauth_xquery_x_reply(const char service[], const char routing[],
-				 const char reply[])
+                                 const char reply[])
 {
     struct iauth_xquery_client *cli;
     struct iauth_xquery_service *srv = NULL;
@@ -282,64 +282,64 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
     ptr = &iauth_xquery;
     cli = set_find(&req->data, &ptr);
     if (!cli)
-	return;
+        return;
 
     /* See if this is a response from a service that we are waiting for. */
     for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	if ((cli->ref_mask & (1u << ii)) == 0)
-	    continue;
-	srv = iauth_xquery_services.vec[ii];
-	if ((srv != NULL) && (0 == strcmp(service, srv->name)))
-	    break;
+        if ((cli->ref_mask & (1u << ii)) == 0)
+            continue;
+        srv = iauth_xquery_services.vec[ii];
+        if ((srv != NULL) && (0 == strcmp(service, srv->name)))
+            break;
     }
     if (!srv)
-	return;
+        return;
 
     /* Update both the client's record and the service's. */
     cli->ref_mask &= ~(1u << ii);
     if (--srv->refs == 0)
-	iauth_xquery_unref(ii);
+        iauth_xquery_unref(ii);
 
     /* Handle the response. */
     if (!reply) {
-	srv->unlinked++;
+        srv->unlinked++;
         if (srv->type != DRONECHECK)
             iauth_challenge(req, "The login server is currently disconnected.  Please excuse the inconvenience.");
     } else if (reply[0] == 'O' && reply[1] == 'K'
-	       && (reply[2] == '\0' || reply[2] == ' ')) {
-	cli->ok_mask |= 1u << ii;
-	if (reply[2] != ' ') {
-	    srv->good_no_acct++;
-	} else if ((srv->type == LOGIN)
-		   || (srv->type == LOGIN_IPR)
-		   || (srv->type == COMBINED)) {
-	    iauth_xquery_set_account(req, reply + 3);
-	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
-		req->holds--;
-	    if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST)
-		|| BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
-		iauth_user_mode(req, "+x");
-	    /* TODO: maybe count clients who get account stamps *and*
-	     * NO responses (this would require different refcounting
-	     * on NO responses).
-	     */
-	    srv->good_acct++;
-	} else {
-	    log_message(iauth_xquery_log, LOG_WARNING,
-			"Ignoring OK <account> from non-login service %s",
-			srv->name);
-	    srv->good_no_acct++;
-	}
+               && (reply[2] == '\0' || reply[2] == ' ')) {
+        cli->ok_mask |= 1u << ii;
+        if (reply[2] != ' ') {
+            srv->good_no_acct++;
+        } else if ((srv->type == LOGIN)
+                   || (srv->type == LOGIN_IPR)
+                   || (srv->type == COMBINED)) {
+            iauth_xquery_set_account(req, reply + 3);
+            if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
+                req->holds--;
+            if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST)
+                || BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
+                iauth_user_mode(req, "+x");
+            /* TODO: maybe count clients who get account stamps *and*
+             * NO responses (this would require different refcounting
+             * on NO responses).
+             */
+            srv->good_acct++;
+        } else {
+            log_message(iauth_xquery_log, LOG_WARNING,
+                        "Ignoring OK <account> from non-login service %s",
+                        srv->name);
+            srv->good_no_acct++;
+        }
 
-	if (cli->ref_mask == 0) {
-	    --req->soft_holds;
-	    iauth_check_request(req);
-	}
+        if (cli->ref_mask == 0) {
+            --req->soft_holds;
+            iauth_check_request(req);
+        }
     } else if (0 == memcmp(reply, "NO ", 3)) {
-	srv->bad++;
-	if (req->account[0] != '\0')
-	    srv->bad_acct++;
-	iauth_kill(req, reply + 3);
+        srv->bad++;
+        if (req->account[0] != '\0')
+            srv->bad_acct++;
+        iauth_kill(req, reply + 3);
     } else if (0 == memcmp(reply, "AGAIN ", 6)) {
         iauth_challenge(req, reply + 6);
     } else if (0 == memcmp(reply, "MORE ", 5)) {
@@ -351,7 +351,7 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
 }
 
 static void iauth_xquery_x_unlinked(const char service[], const char routing[],
-				    UNUSED_ARG(const char message[]))
+                                    UNUSED_ARG(const char message[]))
 {
     iauth_xquery_x_reply(service, routing, NULL);
 }
@@ -369,7 +369,7 @@ static void iauth_xquery_new_client(struct iauth_request *req)
 }
 
 static void iauth_xquery_check(struct iauth_request *req,
-			       enum iauth_flags flag)
+                               enum iauth_flags flag)
 {
     struct iauth_xquery_client *cli;
     struct iauth_xquery_service *srv;
@@ -383,61 +383,61 @@ static void iauth_xquery_check(struct iauth_request *req,
     ptr = &iauth_xquery;
     cli = set_find(&req->data, &ptr);
     if (!cli)
-	return;
+        return;
 
     /* Send the request off to the xquery services. */
     routing[0] = '\0';
     username[0] = '\0';
     for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	srv = iauth_xquery_services.vec[ii];
-	if (!srv || !srv->configured)
-	    continue; /* empty or disabled server slot */
+        srv = iauth_xquery_services.vec[ii];
+        if (!srv || !srv->configured)
+            continue; /* empty or disabled server slot */
 
-	if ((cli->sent_mask & (1u << ii))
+        if ((cli->sent_mask & (1u << ii))
             && ((flag != IAUTH_GOT_PASSWORD)
                 || (srv->type == DRONECHECK)))
-	    continue; /* already asked this server */
+            continue; /* already asked this server */
 
-	if (BITSET_H_ANDNOT(iauth_xquery_flags[srv->type], req->flags))
-	    continue; /* missing necessary information */
+        if (BITSET_H_ANDNOT(iauth_xquery_flags[srv->type], req->flags))
+            continue; /* missing necessary information */
 
-	if (routing[0] == '\0')
-	    iauth_routing(req, routing, sizeof(routing));
+        if (routing[0] == '\0')
+            iauth_routing(req, routing, sizeof(routing));
 
-	/* Populate username (if we need it). */
-	if ((srv->type != LOGIN) && (username[0] == '\0')) {
-	    if (req->auth_username[0] != '\0') {
-		strncpy(username, req->auth_username, USERLEN);
-	    } else if (req->cli_username[0] == '~') {
-		strncpy(username, req->cli_username, USERLEN);
-	    } else if (req->cli_username[0] != '\0') {
-		username[0] = '~';
-		strncpy(username + 1, req->cli_username, USERLEN-1);
-	    }
-	    username[USERLEN] = '\0';
-	}
+        /* Populate username (if we need it). */
+        if ((srv->type != LOGIN) && (username[0] == '\0')) {
+            if (req->auth_username[0] != '\0') {
+                strncpy(username, req->auth_username, USERLEN);
+            } else if (req->cli_username[0] == '~') {
+                strncpy(username, req->cli_username, USERLEN);
+            } else if (req->cli_username[0] != '\0') {
+                username[0] = '~';
+                strncpy(username + 1, req->cli_username, USERLEN-1);
+            }
+            username[USERLEN] = '\0';
+        }
 
-	hostname = req->hostname[0] ? req->hostname : req->text_addr;
+        hostname = req->hostname[0] ? req->hostname : req->text_addr;
 
-	if (srv->type == DRONECHECK || srv->type == COMBINED)
-	    iauth_x_query(srv->name, routing,
-			  "CHECK %s %s %s %s :%s",
-			  req->nickname, username, req->text_addr,
-			  hostname, req->realname);
+        if (srv->type == DRONECHECK || srv->type == COMBINED)
+            iauth_x_query(srv->name, routing,
+                          "CHECK %s %s %s %s :%s",
+                          req->nickname, username, req->text_addr,
+                          hostname, req->realname);
 
-	if (srv->type == LOGIN || srv->type == COMBINED)
-	    iauth_x_query(srv->name, routing, "LOGIN %s", cli->password);
-	else if (srv->type == LOGIN_IPR)
-	    iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s %s",
-			  req->text_addr, hostname, username,
-			  cli->password);
+        if (srv->type == LOGIN || srv->type == COMBINED)
+            iauth_x_query(srv->name, routing, "LOGIN %s", cli->password);
+        else if (srv->type == LOGIN_IPR)
+            iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s %s",
+                          req->text_addr, hostname, username,
+                          cli->password);
 
-	srv->queries++;
-	srv->refs++;
-	if (!cli->ref_mask)
-	    req->soft_holds++;
-	cli->ref_mask |= 1u << ii;
-	cli->sent_mask |= 1u << ii;
+        srv->queries++;
+        srv->refs++;
+        if (!cli->ref_mask)
+            req->soft_holds++;
+        cli->ref_mask |= 1u << ii;
+        cli->sent_mask |= 1u << ii;
     }
 }
 
@@ -458,11 +458,11 @@ static void iauth_xquery_check_password(struct iauth_request *req,
 
     /* Parse the <mode> part of 'password'. */
     if ((*pw != '-') && (*pw != '+'))
-	return;
+        return;
     while (*pw != ' ') {
-	switch (*pw++) {
-	case '+': set = 1; break;
-	case '-': set = 0; break;
+        switch (*pw++) {
+        case '+': set = 1; break;
+        case '-': set = 0; break;
 
 #define MODE(VALUE) do {                                \
                 if (set) {                              \
@@ -472,11 +472,11 @@ static void iauth_xquery_check_password(struct iauth_request *req,
                     BITSET_CLEAR(m_set, (VALUE));       \
                     BITSET_SET(m_clr, (VALUE));         \
                 }                                       \
-	    } while(0)
-	case 'x': MODE(IAUTH_XQUERY_HIDDEN_HOST); break;
-	case '!': MODE(IAUTH_XQUERY_HIDDEN_ONLY); break;
+            } while(0)
+        case 'x': MODE(IAUTH_XQUERY_HIDDEN_HOST); break;
+        case '!': MODE(IAUTH_XQUERY_HIDDEN_ONLY); break;
 #undef MODE
-	}
+        }
     }
 
     /* Skip any spaces. */
@@ -486,7 +486,7 @@ static void iauth_xquery_check_password(struct iauth_request *req,
      * <password>.
      */
     if (!strchr(pw, ' '))
-	return;
+        return;
 
     /* Update the client's requested modes. */
     was_hidden_only = BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY);
@@ -495,9 +495,9 @@ static void iauth_xquery_check_password(struct iauth_request *req,
     is_hidden_only = BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY);
     no_account = req->account[0] == '\0';
     if (is_hidden_only && !was_hidden_only && no_account)
-	req->holds++;
+        req->holds++;
     else if (!is_hidden_only && was_hidden_only && no_account)
-	req->holds--;
+        req->holds--;
 
     /* Looks good, save and send the password. */
     strncpy(cli->password, pw, sizeof(cli->password));
@@ -505,7 +505,7 @@ static void iauth_xquery_check_password(struct iauth_request *req,
 }
 
 static void iauth_xquery_password(struct iauth_request *req,
-				  const char password[])
+                                  const char password[])
 {
     struct iauth_xquery_client *cli;
     void *ptr;
@@ -515,26 +515,26 @@ static void iauth_xquery_password(struct iauth_request *req,
     ptr = &iauth_xquery;
     cli = set_find(&req->data, &ptr);
     if (!cli)
-	return;
+        return;
 
     if ((cli->more_mask == 0) || (cli->password[0] == '\0')) {
-	iauth_xquery_check_password(req, cli, password);
+        iauth_xquery_check_password(req, cli, password);
     } else {
-	struct iauth_xquery_service *srv;
-	char routing[ROUTINGLEN];
+        struct iauth_xquery_service *srv;
+        char routing[ROUTINGLEN];
 
-	/* Presumably a response to a server's MORE challenge. */
-	iauth_routing(req, routing, sizeof(routing));
-	for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	    if (!(cli->more_mask & (1u << ii)))
-		continue;
+        /* Presumably a response to a server's MORE challenge. */
+        iauth_routing(req, routing, sizeof(routing));
+        for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
+            if (!(cli->more_mask & (1u << ii)))
+                continue;
 
-	    srv = iauth_xquery_services.vec[ii];
-	    if (!srv || !srv->configured)
-		continue;
-	    iauth_x_query(srv->name, routing, "MORE %s", password);
-	    cli->more_mask &= ~(1u << ii);
-	}
+            srv = iauth_xquery_services.vec[ii];
+            if (!srv || !srv->configured)
+                continue;
+            iauth_x_query(srv->name, routing, "MORE %s", password);
+            cli->more_mask &= ~(1u << ii);
+        }
     }
 }
 
@@ -562,40 +562,40 @@ static void iauth_xquery_config_service(const char *name, const char *type)
 
     /* Do we already have an entry for this service? */
     for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	srv = iauth_xquery_services.vec[ii];
-	if ((srv != NULL) && (0 == strcmp(srv->name, name)))
-	    break;
+        srv = iauth_xquery_services.vec[ii];
+        if ((srv != NULL) && (0 == strcmp(srv->name, name)))
+            break;
     }
 
     /* If not, add it. */
     if (ii == iauth_xquery_services.used) {
-	stats.n_srv_allocs++;
-	srv = xmalloc(sizeof(*srv) + strlen(name));
-	strcpy(srv->name, name);
+        stats.n_srv_allocs++;
+        srv = xmalloc(sizeof(*srv) + strlen(name));
+        strcpy(srv->name, name);
 
-	/* Try to insert it in an empty slot. */
-	for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	    if (!iauth_xquery_services.vec[ii]) {
-		iauth_xquery_services.vec[ii] = srv;
-		return;
-	    }
-	}
+        /* Try to insert it in an empty slot. */
+        for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
+            if (!iauth_xquery_services.vec[ii]) {
+                iauth_xquery_services.vec[ii] = srv;
+                return;
+            }
+        }
 
-	/* If there are no empty slots, append it. */
-	if (ii == iauth_xquery_services.used)
-	    iauth_xquery_services_append(&iauth_xquery_services, srv);
+        /* If there are no empty slots, append it. */
+        if (ii == iauth_xquery_services.used)
+            iauth_xquery_services_append(&iauth_xquery_services, srv);
     }
 
     /* Look up the type of the service. */
     for (ii = 0; ii < ARRAY_LENGTH(type_names); ++ii) {
-	if (!strcasecmp(type, type_names[ii])) {
-	    srv->type = (enum iauth_xquery_type)ii;
-	    break;
-	}
+        if (!strcasecmp(type, type_names[ii])) {
+            srv->type = (enum iauth_xquery_type)ii;
+            break;
+        }
     }
     if (ii == ARRAY_LENGTH(type_names)) {
-	srv->configured = 0;
-	return;
+        srv->configured = 0;
+        return;
     }
 
     /* Mark this service as configured. */
@@ -609,26 +609,26 @@ static void iauth_xquery_services_changed(struct conf_node_base *node)
     unsigned int ii;
 
     if (node == &conf.root->base) {
-	/* Mark all services as unconfigured. */
-	for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
-	    srv = iauth_xquery_services.vec[ii];
-	    if (srv != NULL)
-		srv->configured = 0;
-	}
+        /* Mark all services as unconfigured. */
+        for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
+            srv = iauth_xquery_services.vec[ii];
+            if (srv != NULL)
+                srv->configured = 0;
+        }
 
-	/* Mark each named service as configured. */
-	for (jj = set_first(&conf.root->contents); jj != NULL; jj = set_next(jj)) {
-	    struct conf_node_base *base = set_node_data(jj);
+        /* Mark each named service as configured. */
+        for (jj = set_first(&conf.root->contents); jj != NULL; jj = set_next(jj)) {
+            struct conf_node_base *base = set_node_data(jj);
 
-	    if (base->type == CONF_STRING) {
-		struct conf_node_string *str = set_node_data(jj);
-		iauth_xquery_config_service(str->base.name, str->value);
-	    } /* else unknown type */
-	}
+            if (base->type == CONF_STRING) {
+                struct conf_node_string *str = set_node_data(jj);
+                iauth_xquery_config_service(str->base.name, str->value);
+            } /* else unknown type */
+        }
 
-	/* Check for unreferenced services. */
-	for (ii = 0; ii < iauth_xquery_services.used; ++ii)
-	    iauth_xquery_unref(ii);
+        /* Check for unreferenced services. */
+        for (ii = 0; ii < iauth_xquery_services.used; ++ii)
+            iauth_xquery_unref(ii);
     }
 }
 
@@ -640,24 +640,24 @@ void module_constructor(UNUSED_ARG(const char name[]))
     conf.root->base.hook = iauth_xquery_services_changed;
     iauth_xquery_services_changed(&conf.root->base);
     BITSET_MULTI_SET(iauth_xquery.policies,
-		     IAUTH_SEND_USER_AND_PASS,
-		     IAUTH_PRIOR_APPROVAL,
-		     IAUTH_SEND_NICKNAME_ETC,
-		     IAUTH_EXTRA_TIME);
+                     IAUTH_SEND_USER_AND_PASS,
+                     IAUTH_PRIOR_APPROVAL,
+                     IAUTH_SEND_NICKNAME_ETC,
+                     IAUTH_EXTRA_TIME);
     BITSET_MULTI_SET(iauth_xquery_flags[LOGIN],
-		     IAUTH_GOT_PASSWORD);
+                     IAUTH_GOT_PASSWORD);
     BITSET_MULTI_SET(iauth_xquery_flags[LOGIN_IPR],
-		     IAUTH_GOT_HOSTNAME,
-		     IAUTH_GOT_IDENT,
-		     IAUTH_GOT_PASSWORD);
+                     IAUTH_GOT_HOSTNAME,
+                     IAUTH_GOT_IDENT,
+                     IAUTH_GOT_PASSWORD);
     BITSET_MULTI_SET(iauth_xquery_flags[DRONECHECK],
-		     IAUTH_GOT_HOSTNAME,
-		     IAUTH_GOT_IDENT,
-		     IAUTH_GOT_NICK,
-		     IAUTH_GOT_USER_INFO);
+                     IAUTH_GOT_HOSTNAME,
+                     IAUTH_GOT_IDENT,
+                     IAUTH_GOT_NICK,
+                     IAUTH_GOT_USER_INFO);
     BITSET_OR(iauth_xquery_flags[COMBINED],
-	      iauth_xquery_flags[LOGIN],
-	      iauth_xquery_flags[DRONECHECK]);
+              iauth_xquery_flags[LOGIN],
+              iauth_xquery_flags[DRONECHECK]);
     /* Clear the IAUTH_GOT_PASSWORD flag for a COMBINED service
      * because it should use a password when one is supplied, but send
      * a query even if no password was given.
@@ -684,21 +684,21 @@ int iauth_xreply_ok(struct iauth_request *request, const char *service)
     ptr = &iauth_xquery;
     cli = set_find(&request->data, &ptr);
     if (!cli)
-	return -1;
+        return -1;
 
     for (ii = 0; ii < iauth_xquery_services.used; ++ii)
     {
-	srv = iauth_xquery_services.vec[ii];
-	if (strcasecmp(service, srv->name))
-	    continue;
-	if ((cli->ok_mask & (1u << ii)) != 0)
-	    return 1;
-	if ((cli->ref_mask & (1u << ii)) != 0)
-	    return 0;
-	if ((cli->sent_mask & (1u << ii)) == 0)
-	    return -2;
-	/* We got either a "NO" or a "service unlinked" reply. */
-	return -3;
+        srv = iauth_xquery_services.vec[ii];
+        if (strcasecmp(service, srv->name))
+            continue;
+        if ((cli->ok_mask & (1u << ii)) != 0)
+            return 1;
+        if ((cli->ref_mask & (1u << ii)) != 0)
+            return 0;
+        if ((cli->sent_mask & (1u << ii)) == 0)
+            return -2;
+        /* We got either a "NO" or a "service unlinked" reply. */
+        return -3;
     }
 
     return -4;

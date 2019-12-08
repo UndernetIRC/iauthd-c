@@ -689,11 +689,11 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
             node = conf_parse_get_child(parent, name, CONF_STRING, sizeof(*node));
             xfree(node->value);
             node->value = string;
-	    if ((ch == '}') && (parent != &parse->root)) {
-		parse->curr--;
-		return;
-	    }
-    	} else if (ch == ',') {
+            if ((ch == '}') && (parent != &parse->root)) {
+                parse->curr--;
+                return;
+            }
+        } else if (ch == ',') {
             struct conf_node_string_list *node;
             struct string_vector new_value;
 

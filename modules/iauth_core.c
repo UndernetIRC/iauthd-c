@@ -459,12 +459,13 @@ static int iauth_collect_config()
     return count;
 }
 
-static void iauth_collect_stats()
+static void iauth_collect_stats(int terminator_last)
 {
     struct iauth_module *mod;
     struct set_node *node;
 
-    iauth_send(NULL, "s");
+    if (!terminator_last)
+        iauth_send(NULL, "s");
     iauth_send(NULL, "S iauth :%lu-%lu reqs alloc; %lu data frees",
         stats.n_req_allocs, stats.n_req_frees, stats.n_req_data_frees);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
@@ -472,6 +473,8 @@ static void iauth_collect_stats()
         if (mod->get_stats)
                 mod->get_stats();
     }
+    if (terminator_last)
+        iauth_send(NULL, "s");
 }
 
 static void parse_new_client(int id, int argc, char *argv[])
@@ -724,7 +727,11 @@ static void parse_info_request(int argc, char *argv[])
     else if (!strcmp(argv[1], "config"))
         iauth_collect_config();
     else if (!strcmp(argv[1], "stats"))
-        iauth_collect_stats();
+        iauth_collect_stats(0);
+    else if (!strcmp(argv[1], "stats2"))
+        iauth_collect_stats(1);
+    else
+        log_message(iauth_log, LOG_WARNING, "Unrecognized info request: %s", argv[1]);
 }
 
 static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
@@ -856,7 +863,7 @@ static void iauth_startup(UNUSED_ARG(int fd), UNUSED_ARG(short evt), UNUSED_ARG(
 
     if (pos > 0) {
         policies[pos] = '\0';
-        iauth_send(NULL, "O %s", policies);
+        iauth_send(NULL, "O S%s", policies);
     }
 }
 

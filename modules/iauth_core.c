@@ -465,7 +465,7 @@ static void iauth_collect_stats()
     struct set_node *node;
 
     iauth_send(NULL, "s");
-    iauth_send(NULL, "A iauth :%lu-%lu reqs alloc; %lu data frees",
+    iauth_send(NULL, "S iauth :%lu-%lu reqs alloc; %lu data frees",
         stats.n_req_allocs, stats.n_req_frees, stats.n_req_data_frees);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         mod = ENCLOSING_STRUCT(node, struct iauth_module, node);

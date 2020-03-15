@@ -186,13 +186,13 @@ int iauth_routing(const struct iauth_request *req, char routing[], size_t routin
     int needed;
 
     if (routing_len < 6)
-	return 1;
+        return 1;
 
     needed = snprintf(routing, routing_len, "%x_%x",
-		      req->client, req->serial);
+                      req->client, req->serial);
     if ((needed < 0) || ((size_t)needed >= routing_len)) {
-	strcpy(routing, "???"); /* length was checked above */
-	return 2;
+        strcpy(routing, "???"); /* length was checked above */
+        return 2;
     }
 
     return 0;
@@ -249,18 +249,18 @@ void iauth_check_request(struct iauth_request *request)
             iauth_accept(request);
         else if (!BITSET_GET(request->flags, IAUTH_SOFT_DONE))
             iauth_soft_done(request);
-	else
-	    log_message(iauth_log, LOG_DEBUG, " -> client %d already had soft done", request->client);
+        else
+            log_message(iauth_log, LOG_DEBUG, " -> client %d already had soft done", request->client);
     } else if (request->holds) {
-	log_message(iauth_log, LOG_DEBUG, " -> client %d has %d holds",
-		    request->client, request->holds);
+        log_message(iauth_log, LOG_DEBUG, " -> client %d has %d holds",
+                    request->client, request->holds);
     } else if (BITSET_GET(request->flags, IAUTH_RESPONDED)) {
-	log_message(iauth_log, LOG_DEBUG, " -> already responded for client %d",
-		    request->client);
+        log_message(iauth_log, LOG_DEBUG, " -> already responded for client %d",
+                    request->client);
     } else {
-	log_message(iauth_log, LOG_DEBUG, " -> client %d still waiting: %#x & ~%#x (plus %d soft holds)",
-		    request->client, iauth_flags.bits[0], request->flags.bits[0],
-		    request->soft_holds);
+        log_message(iauth_log, LOG_DEBUG, " -> client %d still waiting: %#x & ~%#x (plus %d soft holds)",
+                    request->client, iauth_flags.bits[0], request->flags.bits[0],
+                    request->soft_holds);
     }
 }
 
@@ -543,7 +543,7 @@ static void parse_hostname(struct iauth_request *req, char hostname[])
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (plugin->field_change != NULL)
-	    plugin->field_change(req, IAUTH_GOT_HOSTNAME);
+            plugin->field_change(req, IAUTH_GOT_HOSTNAME);
     }
     iauth_check_request(req);
 }
@@ -586,7 +586,7 @@ static void parse_user_info(struct iauth_request *req, int argc, char *argv[])
     strncpy(req->realname, argv[2], REALLEN);
     BITSET_SET(req->flags, IAUTH_GOT_USER_INFO);
     if (BITSET_GET(req->flags, IAUTH_EMPTY_IDENT))
-	BITSET_SET(req->flags, IAUTH_GOT_IDENT);
+        BITSET_SET(req->flags, IAUTH_GOT_IDENT);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (plugin->user_info != NULL)
@@ -601,12 +601,12 @@ static void parse_ident(struct iauth_request *req, char ident[])
     struct set_node *node;
 
     if (ident) {
-	strncpy(req->auth_username, ident, USERLEN);
-	BITSET_SET(req->flags, IAUTH_GOT_IDENT);
+        strncpy(req->auth_username, ident, USERLEN);
+        BITSET_SET(req->flags, IAUTH_GOT_IDENT);
     } else if (req->cli_username[0] != '\0')
-	BITSET_SET(req->flags, IAUTH_GOT_IDENT);
+        BITSET_SET(req->flags, IAUTH_GOT_IDENT);
     else
-	BITSET_SET(req->flags, IAUTH_EMPTY_IDENT);
+        BITSET_SET(req->flags, IAUTH_EMPTY_IDENT);
 
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);

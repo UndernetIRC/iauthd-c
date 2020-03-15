@@ -60,7 +60,7 @@ AC_CHECK_LIB(socket, socket)
 AC_CHECK_LIB(event, event_dispatch,, AC_MSG_ERROR(
 [libevent or libevent2 must be installed to build iauthd-c.]))
 AC_CHECK_TYPE(evutil_socket_t,
-	AC_DEFINE(HAVE_EVUTIL_SOCKET_T, 1, [Define if <evutil.h> defines evutil_socket_t]),, [#include <evutil.h>])
+  AC_DEFINE(HAVE_EVUTIL_SOCKET_T, 1, [Define if <evutil.h> defines evutil_socket_t]),, [#include <evutil.h>])
 
 dnl More detailed system runtime feature checks.
 AC_CHECK_HEADERS([arpa/inet.h dirent.h fcntl.h fnmatch.h inttypes.h netdb.h netinet/in.h regex.h stddef.h stdint.h sys/epoll.h sys/select.h sys/socket.h sys/stat.h sys/timeb.h sys/times.h sys/types.h sys/wait.h unistd.h])

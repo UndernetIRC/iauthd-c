@@ -877,6 +877,7 @@ out:
         req->body = (unsigned char*)cv.vec;
         req->body_len = cv.used;
     }
+    va_end(args);
     return cv.used;
 }
 

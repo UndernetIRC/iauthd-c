@@ -148,6 +148,7 @@ void char_vector_append_vprintf(struct char_vector *cv, const char *format, va_l
             va_copy(working, args);
         }
         cv->used += ret;
+        va_end(working);
     } else if (cv->used + ret < cv->size) {
         /* hooray; it fit */
         cv->used += ret;
@@ -156,6 +157,7 @@ void char_vector_append_vprintf(struct char_vector *cv, const char *format, va_l
         char_vector_reserve(cv, cv->used + ret + 1);
         va_copy(working, args);
         cv->used += vsnprintf(cv->vec + cv->used, cv->size - cv->used, format, working);
+        va_end(working);
     }
 }
 

@@ -193,6 +193,7 @@ void log_vmessage(struct log_type *type, enum log_severity sev, const char *form
             ts[0] = '\0';
         fprintf(stdout, "%s%s: %s\n", ts, type->name, message);
     }
+    va_end(args_2);
 
     xfree(cv.vec);
 

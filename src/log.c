@@ -398,12 +398,14 @@ static int log_parse_type_sevset(struct log_type **type, struct severity_bitset 
             break;
         case 1:
             BITSET_SET(*sevset, sev_val);
+            /* Fall through for >= case. */
         case 2:
             while (++sev_val < LOG_NUM_SEVERITIES)
                 BITSET_SET(*sevset, sev_val);
             break;
         case 3:
             BITSET_SET(*sevset, sev_val);
+            /* Fall through for <= case. */
         case 4:
             while (sev_val-- > 0)
                 BITSET_SET(*sevset, sev_val);

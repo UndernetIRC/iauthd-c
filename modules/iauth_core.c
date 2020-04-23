@@ -522,6 +522,10 @@ static void parse_disconnect(struct iauth_request *req)
     struct iauth_module *plugin;
     struct set_node *node;
 
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 D ...");
+        return;
+    }
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (plugin->disconnect != NULL)
@@ -536,6 +540,10 @@ static void parse_hostname(struct iauth_request *req, char hostname[])
     struct iauth_module *plugin;
     struct set_node *node;
 
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 N ...");
+        return;
+    }
     if (req->hostname[0] != '\0')
         return;
     strncpy(req->hostname, hostname, HOSTLEN);
@@ -553,6 +561,10 @@ static void parse_no_hostname(struct iauth_request *req)
     struct iauth_module *plugin;
     struct set_node *node;
 
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 d ...");
+        return;
+    }
     BITSET_SET(req->flags, IAUTH_GOT_HOSTNAME);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
@@ -567,6 +579,10 @@ static void parse_password(struct iauth_request *req, char password[])
     struct iauth_module *plugin;
     struct set_node *node;
 
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 P ...");
+        return;
+    }
     BITSET_SET(req->flags, IAUTH_GOT_PASSWORD);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
@@ -580,8 +596,14 @@ static void parse_user_info(struct iauth_request *req, int argc, char *argv[])
     struct iauth_module *plugin;
     struct set_node *node;
 
-    if (argc < 3)
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 U ...");
         return;
+    }
+    if (argc < 3) {
+        iauth_send_opers("ircd sent garbage: <id> U without realname");
+        return;
+    }
     strncpy(req->cli_username, argv[1], USERLEN);
     strncpy(req->realname, argv[2], REALLEN);
     BITSET_SET(req->flags, IAUTH_GOT_USER_INFO);
@@ -600,6 +622,10 @@ static void parse_ident(struct iauth_request *req, char ident[])
     struct iauth_module *plugin;
     struct set_node *node;
 
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 u ...");
+        return;
+    }
     if (ident) {
         strncpy(req->auth_username, ident, USERLEN);
         BITSET_SET(req->flags, IAUTH_GOT_IDENT);
@@ -621,6 +647,10 @@ static void parse_nick(struct iauth_request *req, char nick[])
     struct iauth_module *plugin;
     struct set_node *node;
 
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 n ...");
+        return;
+    }
     strncpy(req->nickname, nick, NICKLEN);
     BITSET_SET(req->flags, IAUTH_GOT_NICK);
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
@@ -636,6 +666,10 @@ static void parse_hurry_up(struct iauth_request *req)
     struct iauth_module *plugin;
     struct set_node *node;
 
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 H ...");
+        return;
+    }
     BITSET_OR(req->flags, req->flags, iauth_flags);
     BITSET_SET(req->flags, IAUTH_GOT_HURRY_UP);
     req->state = IAUTH_HURRY;
@@ -652,6 +686,10 @@ static void parse_registered(struct iauth_request *req, int from_ircd)
     struct iauth_module *plugin;
     struct set_node *node;
 
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 T ...");
+        return;
+    }
     req->state = IAUTH_NORMAL;
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);

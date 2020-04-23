@@ -500,7 +500,7 @@ static void iauth_xquery_check_password(struct iauth_request *req,
         req->holds--;
 
     /* Looks good, save and send the password. */
-    strncpy(cli->password, pw, sizeof(cli->password));
+    strncpy(cli->password, pw, sizeof(cli->password) - 1);
     iauth_xquery_check(req, IAUTH_GOT_PASSWORD);
 }
 

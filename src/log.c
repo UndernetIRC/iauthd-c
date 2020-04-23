@@ -148,10 +148,10 @@ void log_vmessage(struct log_type *type, enum log_severity sev, const char *form
     va_list args_2;
     struct char_vector cv;
     char *message, buff[1024];
+    const char *type_name;
     unsigned int ii, count;
     int res;
 
-    assert(type != NULL || sev == LOG_FATAL);
     assert(format != NULL);
     assert(sev < LOG_NUM_SEVERITIES);
 
@@ -175,7 +175,9 @@ void log_vmessage(struct log_type *type, enum log_severity sev, const char *form
             struct log_destination *ld = log_default->logs[sev].vec[ii];
             ld->vtbl->log(ld, type, sev, message);
         }
-    }
+        type_name = type->name;
+    } else
+        type_name = "<null>";
 
     /* Also print to stdout if appropriate. */
     if ((log_verbosity > 1)
@@ -191,7 +193,7 @@ void log_vmessage(struct log_type *type, enum log_severity sev, const char *form
             strftime(ts, sizeof(ts), "[%H:%M:%S %m/%d/%Y] ", &local);
         } else
             ts[0] = '\0';
-        fprintf(stdout, "%s%s: %s\n", ts, type->name, message);
+        fprintf(stdout, "%s%s: %s\n", ts, type_name, message);
     }
     va_end(args_2);
 

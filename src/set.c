@@ -224,7 +224,7 @@ int set_compare_voidp(const void *a_, const void *b_)
 int set_compare_int(const void *a_, const void *b_)
 {
     const int *a = a_, *b = b_;
-    return *b - *a;
+    return *a - *b;
 }
 
 int set_compare_ptr(const void *a_, const void *b_)

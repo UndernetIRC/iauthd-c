@@ -709,6 +709,7 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
 
             node = conf_parse_get_child(parent, name, CONF_STRING_LIST, sizeof(*node));
             memset(&new_value, 0, sizeof(new_value));
+            string_vector_append(&new_value, string);
             while (1) {
                 char *value;
                 ch = conf_parse_whitespace(parse, 1);

@@ -35,6 +35,7 @@
 #define PARSE_EXPECTED_STRING    -2
 #define PARSE_EXPECTED_COMMA     -3
 #define PARSE_EXPECTED_SEMICOLON -4
+#define PARSE_SYSTEM_ERROR       -5
 
 static struct conf_node_object conf_root;
 static struct log_type *conf_log;
@@ -55,7 +56,9 @@ struct conf_parse {
     const char *data;
     const char *curr;
     const char *line_start;
+    const char *c_function;
     int line_num;
+    int c_errno;
 };
 
 static void config_init(void);
@@ -415,30 +418,35 @@ static char *conf_read_file(struct conf_parse *parse, const char *filename)
     int fd;
 
     file = fopen(filename, "r");
-    if (!file)
-        longjmp(parse->env, errno);
+    if (!file) {
+        parse->c_errno = errno;
+        parse->c_function = "fopen";
+        longjmp(parse->env, PARSE_SYSTEM_ERROR);
+    }
 
     fd = fileno(file);
     if (fd < 0) {
-        res = errno;
+        parse->c_function = "fileno";
+file_error:
+        parse->c_errno = errno;
         fclose(file);
-        longjmp(parse->env, res);
+        longjmp(parse->env, PARSE_SYSTEM_ERROR);
     }
 
     res = fstat(fd, &sbuf);
     if (res < 0) {
-        res = errno;
-        fclose(file);
-        longjmp(parse->env, res);
+        parse->c_function = "fstat";
+        goto file_error;
     }
 
     data = xmalloc(sbuf.st_size + 1);
     nbr = fread(data, sbuf.st_size, 1, file);
     if (nbr < 1) {
-        res = errno;
+        parse->c_function = "fread";
+        parse->c_errno = errno;
         xfree(data);
         fclose(file);
-        longjmp(parse->env, res);
+        longjmp(parse->env, PARSE_SYSTEM_ERROR);
     }
 
     data[sbuf.st_size] = '\0';
@@ -1081,6 +1089,9 @@ int conf_read(const char *filename)
         break;
     case PARSE_EXPECTED_SEMICOLON:
         log_message(conf_log, LOG_ERROR, "Expected a semicolon on line %d of %s.", parse.line_num, filename);
+        break;
+    case PARSE_SYSTEM_ERROR:
+        log_message(conf_log, LOG_ERROR, "System error from %s: %s", parse.c_function, strerror(parse.c_errno));
         break;
     default:
         if (!parse.line_num)

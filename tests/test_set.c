@@ -1,4 +1,4 @@
-/* iauth_set.c - Test harness for splay tree dictionary
+/* test_set.c - Test harness for splay tree dictionary
  *
  * Copyright 2019 Michael Poole <mdpoole@troilus.org>
  *
@@ -40,6 +40,17 @@ static const size_t n_ints = ARRAY_LENGTH(ints);
 
 static int idxs[9] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
 static struct set *int_set;
+
+static struct set_node *insert_int_node(int value)
+{
+	struct set_node *n;
+
+	n = set_node_alloc(sizeof(int));
+	*(int *)set_node_data(n) = value;
+	set_insert(int_set, n);
+
+	return n;
+}
 
 static void g_perms(int n, const char * (*visit)(void), const char *description)
 {
@@ -91,14 +102,12 @@ static void g_perms(int n, const char * (*visit)(void), const char *description)
 static const char *test_ints_a(void)
 {
 	static int dir = 1;
-	struct set_node *n;
 	size_t ii;
 	int datum;
 
 	for (ii = 0; ii < n_ints; ++ii) {
-		n = set_node_alloc(sizeof(int));
-		*(int *)set_node_data(n) = ints[idxs[ii]];
-		set_insert(int_set, n);
+		insert_int_node(ints[idxs[ii]]);
+
 		if (set_size(int_set) != ii + 1)
 			return "wrong set_size() after insert";
 	}
@@ -125,15 +134,12 @@ static const char *test_ints_a(void)
 static const char *test_ints_b(void)
 {
 	static int dir = 1;
-	struct set_node *n;
 	size_t ii;
 	int idx, datum;
 
 	for (ii = 0; ii < n_ints; ++ii) {
-		n = set_node_alloc(sizeof(int));
 		idx = (dir > 0) ? ii : (n_ints-1-ii);
-		*(int *)set_node_data(n) = ints[idx];
-		set_insert(int_set, n);
+		insert_int_node(ints[idx]);
 		if (set_size(int_set) != ii + 1)
 			return "wrong set_size() after insert";
 	}
@@ -156,15 +162,38 @@ static const char *test_ints_b(void)
 
 static void test_set(void)
 {
+	struct set_node *n_5, *n_8, *n;
+	int datum;
+
 	int_set = set_alloc(set_compare_int, NULL);
 	g_perms(n_ints, test_ints_a, "randomized insertion of ints");
 	g_perms(n_ints, test_ints_b, "randomized removal of ints");
 	set_clear(int_set, 0);
-	free(int_set);
+
+	insert_int_node(2);
+	insert_int_node(5);
+	n_8 = insert_int_node(8);
+	n_5 = insert_int_node(5);
+	cmp_ok(set_size(int_set), "==", 3, "set_size() after duplicate insert");
+
+	datum = 4;
+	n = set_lower(int_set, &datum);
+	ok((n == n_5), "expect set_lower(int_set, &4) == n_5_2");
+
+	datum = 8;
+	n = set_lower(int_set, &datum);
+	ok((n == n_8), "expect set_lower(int_set, &8) == n_8");
+
+	set_clear(int_set, 0);
 }
 
 void module_constructor(UNUSED_ARG(const char name[]))
 {
     module_depends("tests", NULL);
-    plan(test_set, 2);
+    plan(test_set, 5);
+}
+
+void module_destructor(void)
+{
+	free(int_set);
 }

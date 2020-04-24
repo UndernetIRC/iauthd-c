@@ -48,6 +48,7 @@ void test_is(const char *got, const char *expected, const char *fmt, ...);
 void test_isnt(const char *got, const char *unexpected, const char *fmt, ...);
 void test_cmp(int a, const char *op, int b, const char *fmt, ...);
 void test_memcmp(const void *got, const void *expected, size_t n, const char *fmt, ...);
+void test_near(double a, double b, const char *fmt, ...);
 void test_skip(int n, const char *fmt, ...);
 
 #define NO_PLAN -1
@@ -58,6 +59,7 @@ void test_skip(int n, const char *fmt, ...);
 #define isnt(...) test_isnt(__VA_ARGS__, NULL)
 #define cmp_ok(...) test_cmp(__VA_ARGS__, NULL)
 #define cmp_mem(...) test_memcmp(__VA_ARGS__, NULL)
+#define near(...) test_near(__VA_ARGS__, NULL)
 #define pass(...) ok(1, "" __VA_ARGS__)
 #define fail(...) ok(0, "" __VA_ARGS__)
 #define skip(val, count, ...) do { if (val) { test_skip(count, __VA_ARGS__, NULL); break; }

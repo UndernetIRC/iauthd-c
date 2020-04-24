@@ -33,9 +33,25 @@ EXTRA_DIST += \
 	tests/test_all.sh
 
 check_LTLIBRARIES = \
+	tests/test_accum.la \
+	tests/test_bitset.la \
+	tests/test_common.la \
+	tests/test_config.la \
 	tests/test_sar.la \
 	tests/test_set.la \
 	tests/tests.la
+
+tests_test_accum_la_SOURCES = tests/test_accum.c
+tests_test_accum_la_LDFLAGS = $(TEST_LDFLAGS)
+
+tests_test_bitset_la_SOURCES = tests/test_bitset.c
+tests_test_bitset_la_LDFLAGS = $(TEST_LDFLAGS)
+
+tests_test_common_la_SOURCES = tests/test_common.c
+tests_test_common_la_LDFLAGS = $(TEST_LDFLAGS)
+
+tests_test_config_la_SOURCES = tests/test_config.c
+tests_test_config_la_LDFLAGS = $(TEST_LDFLAGS)
 
 tests_test_sar_la_SOURCES = tests/test_sar.c
 tests_test_sar_la_LDFLAGS = $(TEST_LDFLAGS)

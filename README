@@ -96,3 +96,13 @@ later should be harmless.)
   cd +build
   ../configure --enable-silent-rules
   make
+
+Testing
+=======
+
+Some testing should exercise code coverage.  To do this:
+  make clean CFLAGS="-g -fprofile-arcs -ftest-coverage" LDFLAGS="-coverage" check
+  lcov --capture --directory . --output-file coverage.info
+  genhtml coverage.info --output-directory lcov
+  sensible-browser lcov/index.html
+(This assumes "lcov" and "sensible-utils" are installed.)

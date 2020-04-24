@@ -24,6 +24,7 @@
  */
 
 #include "tests/tests.h"
+#include <math.h>
 #include <setjmp.h>
 
 DECLARE_VECTOR(test_list, test_func);
@@ -163,6 +164,8 @@ void test_cmp(int a, const char *op, int b, const char *fmt, ...)
         val = (a >= b);
     else if (!strcmp(op, ">"))
         val = (a > b);
+    else if (!strcmp(op, "!="))
+        val = (a != b);
     else
         BAIL_OUT("invalid operator for cmp_ok(%d, \"%s\", %d, ...)", a, op, b);
 
@@ -201,6 +204,21 @@ void test_memcmp(const void *got, const void *expected, size_t n, const char *fm
         for (jj = 0; jj < 12; ++jj)
             printf(" %02x", e[kk+jj]);
         putc('\n', stdout);
+    }
+}
+
+void test_near(double a, double b, const char *fmt, ...)
+{
+    double diff = a - b;
+    double margin = b * 1e-9;
+    int val = fabs(diff) < margin;
+    va_list args;
+
+    va_start(args, fmt);
+    test_vok(val, fmt, args);
+    va_end(args);
+    if (!val) {
+        printf("# %f ~= %f\n", a, b);
     }
 }
 

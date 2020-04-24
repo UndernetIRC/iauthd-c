@@ -1,4 +1,4 @@
-/* iauth_sar.c - Test harness for inaddr manipulations
+/* test_sar.c - Test harness for inaddr manipulations
  *
  * Copyright 2016 Michael Poole <mdpoole@troilus.org>
  *

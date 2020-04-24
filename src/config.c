@@ -176,8 +176,9 @@ unsigned int conf_parse_interval(const char *value, int *success)
     unsigned int total = 0;
     unsigned int partial = 0;
     unsigned int seen_colon = 0;
+    char ch;
 
-    while (*pos) switch (*pos++) {
+    while ((ch = *pos++) != '\0') switch (ch) {
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
         partial = partial * 10 + pos[-1] - '0';
@@ -211,11 +212,11 @@ unsigned int conf_parse_interval(const char *value, int *success)
         partial = 0;
         break;
     default:
-        break;
+        goto out;
     }
 out:
     if (success)
-        *success = (*pos == '\0');
+        *success = (ch == '\0');
     return total + partial;
 }
 

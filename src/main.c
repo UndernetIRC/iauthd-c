@@ -261,7 +261,6 @@ int main(int argc, char *argv[])
     evdns_set_log_fn(log_for_evdns);
 
     /* Initialize the other iauthd core components. */
-    log_set_verbosity(verbose_debug ? 2 : 0);
     ctype_init();
     module_init();
     sar_init();
@@ -277,6 +276,9 @@ int main(int argc, char *argv[])
         fprintf(stdout, "Configuration file %s appears valid.\n", config_filename);
         return EXIT_SUCCESS;
     }
+
+    /* Adjust log verbosity as requested. */
+    log_set_verbosity(verbose_debug ? 2 : 0);
 
     /* Handle signals. */
     signal_set(&sighup_evt, SIGHUP, break_loop, NULL);

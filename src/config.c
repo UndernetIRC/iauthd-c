@@ -484,8 +484,10 @@ static int conf_parse_whitespace(struct conf_parse *parse, int care_eof)
                     parse->curr--;
                     return c;
                 }
-                if (*parse->curr == '/')
+                if (*parse->curr == '/') {
+                    parse->curr++;
                     break;
+                }
             }
         } else if (d == '/') {
             do {

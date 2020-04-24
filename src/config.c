@@ -723,7 +723,7 @@ static void conf_parse_entry(struct conf_parse *parse, struct conf_node_object *
                 ch = conf_parse_whitespace(parse, 1);
                 if (ch == '\0')
                     longjmp(parse->env, PARSE_PREMATURE_EOF);
-                if (ch == '\n')
+                if (ch == '\n' || ch == ';')
                     break;
                 if (ch != ',')
                     longjmp(parse->env, PARSE_EXPECTED_COMMA);

@@ -1244,6 +1244,7 @@ static int sar_getaddr_decode(struct sar_request *req, struct dns_header *hdr, s
             hit += sar_getaddr_decode(req, hdr, rr, raw, raw_size, jj);
         }
         /* XXX: if (!hit) handle or log the incomplete recursion; */
+        free(cname);
         return hit;
 
     case REQ_TYPE_SRV:

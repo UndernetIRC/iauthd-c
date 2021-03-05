@@ -581,14 +581,13 @@ static int sar_decode_answer(struct sar_request *req, struct dns_header *hdr, un
             case RES_SF_POINTER:
                 if (pos + 1 >= size)
                     return 2;
-                pos = (buf[pos] & ~RES_SIZE_FLAGS) << 8 | buf[pos+1];
-                if (pos >= size)
-                    return 3;
-                break;
+                pos += 2;
+                goto post_name;
             default:
                 return 4;
             }
         }
+    post_name:
         /* Skip over null terminator, type and class part of question. */
         pos += 5;
     }

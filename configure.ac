@@ -63,7 +63,7 @@ AC_CHECK_TYPE(evutil_socket_t,
   AC_DEFINE(HAVE_EVUTIL_SOCKET_T, 1, [Define if <evutil.h> defines evutil_socket_t]),, [#include <evutil.h>])
 
 dnl More detailed system runtime feature checks.
-AC_CHECK_HEADERS([arpa/inet.h dirent.h fcntl.h fnmatch.h inttypes.h netdb.h netinet/in.h regex.h stddef.h stdint.h sys/epoll.h sys/select.h sys/socket.h sys/stat.h sys/timeb.h sys/times.h sys/types.h sys/wait.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h dirent.h fcntl.h fnmatch.h inttypes.h netdb.h netinet/in.h regex.h stddef.h stdint.h strings.h sys/epoll.h sys/select.h sys/socket.h sys/stat.h sys/timeb.h sys/times.h sys/types.h sys/wait.h unistd.h])
 AC_CHECK_FUNCS([atoi socket vsnprintf])
 AC_CHECK_FUNCS([closedir fnmatch ftime gettimeofday gmtime gmtime_r opendir readdir regcomp regexec regfree sigaction strerror strlcpy strlcat strsignal strtok_r sysconf],,)
 if test $ac_cv_func_gmtime_r = no -a $ac_cv_func_gmtime = no ; then

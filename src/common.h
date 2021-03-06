@@ -33,6 +33,7 @@
 /* Include the libevent headers. */
 #include <event2/event.h>
 #include <event2/dns.h>
+#include <event2/util.h>
 #include <event2/buffer.h>
 extern struct event_base *ev_base;
 extern struct evdns_base *ev_dns;
@@ -103,6 +104,5 @@ void const_string_vector_remove(struct const_string_vector *sv, const char *stri
 #include "src/config.h"
 #include "src/log.h"
 #include "src/module.h"
-#include "src/sar.h"
 
 #endif /* !defined(COMMON_H_423c4b78_b463_4c5c_bd2f_f48559e8a1ee) */

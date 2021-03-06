@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
     }
 
     /* Initialize libevent's DNS module. */
-    ev_dns = evdns_base_new(ev_base, 0);
+    ev_dns = evdns_base_new(ev_base, 1);
     if (!ev_dns) {
         fprintf(stderr, "Unable to initialize DNS library.\n");
         return EXIT_FAILURE;
@@ -298,7 +298,6 @@ int main(int argc, char *argv[])
     /* Initialize the other iauthd core components. */
     ctype_init();
     module_init();
-    sar_init();
     if (conf_read(config_filename))
         return EXIT_FAILURE;
     if (module_add_path(&conf.library_path->value))
@@ -334,7 +333,7 @@ int main(int argc, char *argv[])
     {
         char **restart_argv;
 
-        restart_argv = alloca((argc + 1) * sizeof(restart_argv[0]));
+        restart_argv = xmalloc((argc + 1) * sizeof(restart_argv[0]));
         memcpy(restart_argv, argv, argc * sizeof(restart_argv[0]));
         restart_argv[argc] = NULL;
         execv(argv[0], restart_argv);

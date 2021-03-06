@@ -88,8 +88,8 @@ struct conf_node_inaddr {
     const char *def_service;
     char *hostname;
     char *service;
-    struct sar_request *req;
-    struct addrinfo *addr;
+    struct evdns_getaddrinfo_request *req;
+    struct evutil_addrinfo *addr;
     enum conf_addrinfo_state state;
 };
 

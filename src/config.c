@@ -73,6 +73,44 @@ static int conf_object_cmp(const void *a_, const void *b_)
     return res;
 }
 
+static struct evutil_addrinfo *copy_addrinfo(const struct evutil_addrinfo *src)
+{
+    struct evutil_addrinfo *copy;
+    size_t canonname_len;
+
+    if (!src)
+        return NULL;
+
+    canonname_len = src->ai_canonname ? (1 + strlen(src->ai_canonname)) : 0;
+    copy = xmalloc(sizeof(*copy) + src->ai_addrlen + canonname_len);
+    copy->ai_flags = src->ai_flags;
+    copy->ai_family = src->ai_family;
+    copy->ai_socktype = src->ai_socktype;
+    copy->ai_protocol = src->ai_protocol;
+    copy->ai_addrlen = src->ai_addrlen;
+    copy->ai_addr = (struct sockaddr *)(copy + 1);
+    memcpy(copy->ai_addr, src->ai_addr, src->ai_addrlen);
+    if (canonname_len) {
+        copy->ai_canonname = ((char *)copy->ai_addr) + src->ai_addrlen;
+        memcpy(copy->ai_canonname, src->ai_canonname, canonname_len);
+    } else {
+        copy->ai_canonname = NULL;
+    }
+    copy->ai_next = copy_addrinfo(src->ai_next);
+
+    return copy;
+}
+
+static void free_addrinfo(struct evutil_addrinfo *ai)
+{
+    struct evutil_addrinfo *next;
+
+    for (; ai; ai = next) {
+        next = ai->ai_next;
+        free(ai);
+    }
+}
+
 static void conf_object_cleanup(void *base_)
 {
     struct conf_node_base *base = base_;
@@ -85,8 +123,9 @@ static void conf_object_cleanup(void *base_)
         node = ENCLOSING_STRUCT(base, struct conf_node_inaddr, base);
         xfree(node->hostname);
         xfree(node->service);
-        sar_abort(node->req);
-        sar_free(node->addr);
+        if (node->req)
+            evdns_getaddrinfo_cancel(node->req);
+        free_addrinfo(node->addr);
         break;
     }
     case CONF_STRING_LIST: {
@@ -329,14 +368,14 @@ struct conf_node_string *conf_register_string(struct conf_node_object *parent, e
     return cnode;
 }
 
-static void conf_inaddr_resolved(void *ctx, struct addrinfo *res, enum sar_errcode errcode)
+static void conf_inaddr_resolved(int result, struct evutil_addrinfo *res, void *arg)
 {
-    struct conf_node_inaddr *node = ctx;
+    struct conf_node_inaddr *node = arg;
 
-    if (errcode != SAI_SUCCESS)
-        log_message(conf_log, LOG_ERROR, "Error resolving service [%s]:%s: %s", node->hostname, node->service, sar_strerror(errcode));
+    if (result != DNS_ERR_NONE)
+        log_message(conf_log, LOG_ERROR, "Error resolving service [%s]:%s: %s", node->hostname, node->service, evdns_err_to_string(result));
     else if (res) {
-        node->addr = res;
+        node->addr = copy_addrinfo(res);
         node->state = CA_VALID;
     } else {
         node->addr = NULL;
@@ -351,7 +390,7 @@ enum conf_addrinfo_state conf_inaddr_validate(struct conf_node_inaddr *node)
     else if (node->state != CA_UNKNOWN)
         return node->state;
     node->state = CA_PENDING;
-    node->req = sar_getaddr(node->hostname, node->service, NULL, conf_inaddr_resolved, node);
+    node->req = evdns_getaddrinfo(ev_dns, node->hostname, node->service, NULL, conf_inaddr_resolved, node);
     return node->state; /* may no longer be pending */
 }
 

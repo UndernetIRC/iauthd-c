@@ -55,7 +55,6 @@ src_iauthd_c_SOURCES = \
 	src/log.c src/log.h \
 	src/main.c \
 	src/module.c src/module.h \
-	src/sar.c src/sar.h \
 	src/set.c src/set.h \
 	src/vector.h
 

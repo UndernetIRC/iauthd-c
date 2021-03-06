@@ -22,9 +22,7 @@ Architecture
 ============
 
 iauthd-c uses libevent (http://www.monkey.org/~provos/libevent/) for
-I/O multiplexing.  Extension modules can use either libevent's
-asynchronous DNS resolver (evdns_*) or a more full-featured one in
-iauthd-c (sar_*).
+I/O multiplexing, including evdns_* for DNS lookups.
 
 At the moment, iauthd-c is single-threaded, because we do not
 anticipate it being compute-bound or otherwise benefiting from

@@ -235,8 +235,10 @@ static void reload_config(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_AR
 
 static void main_cleanup(void)
 {
-    event_free(sigusr1_evt);
-    event_free(sighup_evt);
+    if (sigusr1_evt)
+        event_free(sigusr1_evt);
+    if (sighup_evt)
+        event_free(sighup_evt);
     evdns_base_free(ev_dns, 0);
     event_base_free(ev_base);
 }

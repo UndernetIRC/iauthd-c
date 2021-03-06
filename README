@@ -21,8 +21,8 @@ client can bother anyone else).
 Architecture
 ============
 
-iauthd-c uses libevent (http://www.monkey.org/~provos/libevent/) for
-I/O multiplexing, including evdns_* for DNS lookups.
+iauthd-c uses libevent (http://www.libevent.org/) for I/O multiplexing,
+including evdns_* for DNS lookups.
 
 At the moment, iauthd-c is single-threaded, because we do not
 anticipate it being compute-bound or otherwise benefiting from

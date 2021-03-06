@@ -33,8 +33,11 @@ static struct set *iauth_reqs;
 /** Set of all registered IAuth modules. */
 static struct set *iauth_modules;
 
-/** Event descriptor for input data. */
-static struct bufferevent *iauth_in;
+/** Input event object for IAuth. */
+static struct event *iauth_ev;
+
+/** Buffer object for input data. */
+static struct evbuffer *iauth_in;
 
 /** Bitset containing all requested policies. */
 static struct iauth_policyset iauth_policies;
@@ -428,7 +431,7 @@ void iauth_soft_done(struct iauth_request *req)
 static void iauth_req_cleanup(void *ptr)
 {
     struct iauth_request *req = ptr;
-    event_del(&req->timeout);
+    event_free(req->timeout);
     stats.n_req_data_frees += set_size(&req->data);
     set_clear(&req->data, 0);
 }
@@ -505,9 +508,9 @@ static void parse_new_client(int id, int argc, char *argv[])
     /* Do we have a timeout? */
     timeout.tv_sec = iauth_conf_timeout->parsed.p_interval;
     timeout.tv_usec = 0;
-    evtimer_set(&req->timeout, iauth_timeout, req);
+    req->timeout = evtimer_new(ev_base, iauth_timeout, req);
     if (timeout.tv_sec > 0)
-        evtimer_add(&req->timeout, &timeout);
+        evtimer_add(req->timeout, &timeout);
 
     /* Broadcast the message. */
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
@@ -772,23 +775,33 @@ static void parse_info_request(int argc, char *argv[])
         log_message(iauth_log, LOG_WARNING, "Unrecognized info request: %s", argv[1]);
 }
 
-static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
+static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
 {
     struct iauth_request *req;
     char *argv[16];
     char *line;
     char *sep;
     size_t argc, len;
-    int id;
+    int id, res;
+
+    if (!(events & EV_READ))
+        return;
+
+    /* Read a chunk of data from the FD into our evbuffer. */
+    res = evbuffer_read(iauth_in_v, fd, 4096);
+    if (res < 0) {
+        if (errno != EWOULDBLOCK)
+            log_message(iauth_log, LOG_ERROR, "Unable to read input: %s", strerror(errno));
+        return;
+    }
+    if (res == 0) {
+        log_message(log_core, LOG_INFO, "Terminating due to EOF on input");
+        event_base_loopbreak(ev_base);
+        return;
+    }
 
     /* Parse out the start of the line (simple, standard bits). */
-    while ((line = evbuffer_readline(buf->input)) != NULL)
-    {
-        len = strlen(line);
-        if (len > 0 && line[len-1] == '\r')
-        {
-            line[len-1] = '\0';
-        }
+    while ((line = evbuffer_readln(iauth_in_v, &len, EVBUFFER_EOL_CRLF)) != NULL) {
         log_message(iauth_log, LOG_DEBUG, "> %s", line);
         id = strtol(line, &sep, 10);
 
@@ -818,6 +831,7 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
              * client disconnects.
             log_message(iauth_log, LOG_DEBUG, " .. no client found for id %d", id);
             */
+            free(line);
             return;
         }
 
@@ -872,14 +886,9 @@ static void iauth_read(struct bufferevent *buf, UNUSED_ARG(void *arg))
             parse_info_request(argc, argv);
             break;
         }
-    }
-}
 
-static void iauth_io_error(UNUSED_ARG(struct bufferevent *buf), short events, UNUSED_ARG(void *arg))
-{
-    if (events & EVBUFFER_EOF) {
-        log_message(log_core, LOG_INFO, "Terminating due to EOF on input");
-        event_loopbreak();
+        /* We are responsible for freeing the line. */
+        free(line);
     }
 }
 
@@ -916,14 +925,25 @@ void module_constructor(UNUSED_ARG(const char name[]))
     iauth_modules = set_alloc(set_compare_charp, NULL);
     iauth_conf = conf_register_object(NULL, "iauth");
     iauth_conf_timeout = conf_register_string(iauth_conf, CONF_STRING_INTERVAL, "timeout", "0");
-    event_once(-1, EV_TIMEOUT, iauth_startup, NULL, &tv_zero);
-    iauth_in = bufferevent_new(STDIN_FILENO, iauth_read, NULL, iauth_io_error, NULL);
-    bufferevent_enable(iauth_in, EV_READ);
+
+    event_base_once(ev_base, -1, EV_TIMEOUT, iauth_startup, NULL, &tv_zero);
+    iauth_in = evbuffer_new();
+    if (!iauth_in) {
+        log_message(iauth_log, LOG_FATAL, "Unable to create IAuth evbuffer");
+        return;
+    }
+    iauth_ev = event_new(ev_base, STDIN_FILENO, EV_PERSIST | EV_READ, iauth_read, iauth_in);
+    if (!iauth_ev) {
+        log_message(iauth_log, LOG_FATAL, "Unable to create IAuth event");
+        return;
+    }
+    event_add(iauth_ev, NULL);
 }
 
 void module_destructor(void)
 {
-    bufferevent_free(iauth_in);
+    evbuffer_free(iauth_in);
+    event_free(iauth_ev);
     set_clear(iauth_reqs, 0);
     free(iauth_reqs);
     set_clear(iauth_modules, 1);

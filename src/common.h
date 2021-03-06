@@ -31,8 +31,11 @@
 #include "src/compat.h"
 
 /* Include the libevent headers. */
-#include <evdns.h>
-#include <event.h>
+#include <event2/event.h>
+#include <event2/dns.h>
+#include <event2/buffer.h>
+extern struct event_base *ev_base;
+extern struct evdns_base *ev_dns;
 
 /** Evaluates to the length of an array \a x. */
 #define ARRAY_LENGTH(x) (sizeof(x)/sizeof(x[0]))

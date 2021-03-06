@@ -41,14 +41,17 @@ static struct {
 } conf;
 
 static const struct argument args[];
-static struct event sighup_evt;
-static struct event sigusr1_evt;
+static struct event *sighup_evt;
+static struct event *sigusr1_evt;
 static const char *config_filename = SYSCONFDIR "/iauthd-c.conf";
 static const char *iauthd_executable;
 static int verbose_debug;
 static int early_exit;
 static int no_chdir;
 static int restart;
+static int ev_arbitrary_fds;
+struct event_base *ev_base;
+struct evdns_base *ev_dns;
 int clean_exit;
 
 static int do_arg_help(UNUSED_ARG(const char *arg))
@@ -103,6 +106,12 @@ static int do_arg_no_chdir(UNUSED_ARG(const char *arg))
     return 0;
 }
 
+static int do_arg_arbitrary_fds(UNUSED_ARG(const char *arg))
+{
+    ev_arbitrary_fds = 1;
+    return 0;
+}
+
 static const struct argument args[] = {
     { "help", '?', do_arg_help, 0, "Show usage information" },
     { "version", 'v', do_arg_version, 0, "Show software version" },
@@ -110,6 +119,7 @@ static const struct argument args[] = {
     { "config", 'f', do_arg_config, 1, "Use specific configuration file" },
     { "debug", 'd', do_arg_debug, 0, "Enable verbose debug output" },
     { "no-chdir", 'n', do_arg_no_chdir, 0, "Disable chdir(LOGDIR) at startup" },
+    { "arbitrary-fds", 'A', do_arg_arbitrary_fds, 0, "Request libevent support for arbitrary FD types"},
     { NULL, '\0', NULL, 0, NULL }
 };
 
@@ -214,7 +224,7 @@ static void break_loop(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_ARG(v
 {
     log_message(log_core, LOG_INFO, "break_loop() called due to signal");
     clean_exit = 1;
-    event_loopbreak();
+    event_base_loopbreak(ev_base);
 }
 
 static void reload_config(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_ARG(void *arg))
@@ -223,8 +233,18 @@ static void reload_config(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_AR
     conf_read(config_filename);
 }
 
+static void main_cleanup(void)
+{
+    event_free(sigusr1_evt);
+    event_free(sighup_evt);
+    evdns_base_free(ev_dns, 0);
+    event_base_free(ev_base);
+}
+
 int main(int argc, char *argv[])
 {
+    struct event_config *ev_cfg;
+
     iauthd_executable = argv[0];
     atexit(call_exit_funcs);
     parse_arguments(argc, argv);
@@ -244,17 +264,32 @@ int main(int argc, char *argv[])
     conf.modules = conf_register_string_list(conf.root, "modules", NULL);
 
     /* Initialize libevent. */
-    if (!event_init()) {
+    ev_cfg = event_config_new();
+    if (!ev_cfg) {
+        fprintf(stderr, "Allocation of event_config structure failed.\n");
+        return EXIT_FAILURE;
+    }
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    ev_arbitrary_fds = 1;
+#endif
+    if (ev_arbitrary_fds && event_config_require_features(ev_cfg, EV_FEATURE_FDS)) {
+        fprintf(stderr, "libevent rejected EV_FEATURE_FDS.\n");
+        return EXIT_FAILURE;
+    }
+    ev_base = event_base_new_with_config(ev_cfg);
+    event_config_free(ev_cfg);
+    if (!ev_base) {
         fprintf(stderr, "Unable to initialize event library.\n");
         return EXIT_FAILURE;
     }
 
     /* Initialize libevent's DNS module. */
-    if (evdns_init()) {
+    ev_dns = evdns_base_new(ev_base, 0);
+    if (!ev_dns) {
         fprintf(stderr, "Unable to initialize DNS library.\n");
         return EXIT_FAILURE;
     }
-    evdns_search_clear();
+    reg_exit_func(main_cleanup);
 
     /* Capture libevent's error messages to our own log. */
     event_set_log_callback(log_for_libevent);
@@ -281,15 +316,19 @@ int main(int argc, char *argv[])
     log_set_verbosity(verbose_debug ? 2 : 0);
 
     /* Handle signals. */
-    signal_set(&sighup_evt, SIGHUP, break_loop, NULL);
-    if (event_add(&sighup_evt, NULL))
-        log_message(log_core, LOG_FATAL, "Unable to handle SIGHUP handler.");
-    signal_set(&sigusr1_evt, SIGUSR1, reload_config, NULL);
-    if (event_add(&sigusr1_evt, NULL))
-        log_message(log_core, LOG_FATAL, "Unable to handle SIGUSR1 handler.");
+    sighup_evt = event_new(ev_base, SIGHUP, EV_SIGNAL | EV_PERSIST, break_loop, NULL);
+    if (!sighup_evt)
+        log_message(log_core, LOG_FATAL, "Unable to create SIGHUP handler.");
+    if (event_add(sighup_evt, NULL))
+        log_message(log_core, LOG_FATAL, "Unable to add SIGHUP handler.");
+    sigusr1_evt = event_new(ev_base, SIGUSR1, EV_SIGNAL | EV_PERSIST, reload_config, NULL);
+    if (!sigusr1_evt)
+        log_message(log_core, LOG_FATAL, "Unable to create SIGUSR1 handler.");
+    if (event_add(sigusr1_evt, NULL))
+        log_message(log_core, LOG_FATAL, "Unable to add SIGUSR1 handler.");
 
     /* Run the event loop. */
-    event_dispatch();
+    event_base_dispatch(ev_base);
 
     if (restart)
     {

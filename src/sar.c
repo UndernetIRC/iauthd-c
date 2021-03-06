@@ -280,8 +280,8 @@ struct sar_request {
 
 static struct set sar_requests;
 static struct set sar_nameservers;
-static struct event sar_fd;
-static struct event sar_timeout;
+static struct event *sar_fd;
+static struct event *sar_timeout;
 static int sar_fd_fd;
 
 #define TV_LESS(A, B) evutil_timercmp(&(A), &(B), <)
@@ -320,7 +320,7 @@ static void sar_request_fail(struct sar_request *req, unsigned int rcode)
     sar_abort(req);
 }
 
-static void sar_timeout_cb(UNUSED_ARG(int fd), UNUSED_ARG(short event), void *timer)
+static void sar_timeout_cb(UNUSED_ARG(int fd), UNUSED_ARG(short event), UNUSED_ARG(void *datum))
 {
     struct set_node *it;
     struct set_node *next;
@@ -345,19 +345,21 @@ static void sar_timeout_cb(UNUSED_ARG(int fd), UNUSED_ARG(short event), void *ti
             sar_request_send(req);
     }
     if (next_timeout.tv_sec < INT_MAX)
-        evtimer_add(timer, &next_timeout);
+        evtimer_add(sar_timeout, &next_timeout);
 }
 
 static void sar_check_timeout(struct timeval when)
 {
-    if (!evutil_timerisset(&sar_timeout.ev_timeout))
+    struct timeval previous;
+
+    if (!evtimer_pending(sar_timeout, &previous))
     {
-        evtimer_add(&sar_timeout, &when);
+        evtimer_add(sar_timeout, &when);
     }
-    else if (TV_LESS(when, sar_timeout.ev_timeout))
+    else if (TV_LESS(when, previous))
     {
-        evtimer_del(&sar_timeout);
-        evtimer_add(&sar_timeout, &when);
+        evtimer_del(sar_timeout);
+        evtimer_add(sar_timeout, &when);
     }
     /* else existing timeout is sooner */
 }
@@ -642,7 +644,7 @@ static const unsigned char *sar_extract_rdata(struct dns_rr *rr, unsigned int le
     return raw + rr->rd_start;
 }
 
-static void sar_fd_cb(int fd, short event, void *arg)
+static void sar_fd_cb(int fd, short event, UNUSED_ARG(void *arg))
 {
     struct sockaddr_storage ss;
     struct dns_header hdr;
@@ -653,7 +655,6 @@ static void sar_fd_cb(int fd, short event, void *arg)
     int id, res, rcode, buf_len;
 
     assert(fd == sar_fd_fd);
-    assert(arg == &sar_fd);
     if (event != EV_READ)
         return;
     buf_len = conf.sar_edns0->parsed.p_integer;
@@ -673,7 +674,7 @@ static void sar_fd_cb(int fd, short event, void *arg)
 
     id = hdr.id;
     req = set_find(&sar_requests, &id);
-    log_message(sar_log, LOG_DEBUG, "sar_fd_cb(%d, EV_READ, %p): hdr {id=%d, flags=0x%x, qdcount=%d, ancount=%d, nscount=%d, arcount=%d} -> req %p", fd, arg, hdr.id, hdr.flags, hdr.qdcount, hdr.ancount, hdr.nscount, hdr.arcount, req);
+    log_message(sar_log, LOG_DEBUG, "sar_fd_cb(%d, EV_READ): hdr {id=%d, flags=0x%x, qdcount=%d, ancount=%d, nscount=%d, arcount=%d} -> req %p", fd, hdr.id, hdr.flags, hdr.qdcount, hdr.ancount, hdr.nscount, hdr.arcount, req);
     if (!req || !req->retries || !(hdr.flags & REQ_FLAG_QR)) {
         ns->resp_ignored++;
         return;
@@ -764,8 +765,8 @@ static int sar_open_fd(void)
         }
     }
 
-    event_set(&sar_fd, sar_fd_fd, EV_READ, sar_fd_cb, &sar_fd);
-    if (event_add(&sar_fd, NULL)) {
+    sar_fd = event_new(ev_base, sar_fd_fd, EV_READ | EV_PERSIST, sar_fd_cb, NULL);
+    if (event_add(sar_fd, NULL)) {
         log_message(sar_log, LOG_FATAL, "Unable to register resolver socket with event loop.");
         return 1;
     }
@@ -886,7 +887,7 @@ static void sar_request_send(struct sar_request *req)
     struct set_node *it;
 
     /* make sure we have our local socket */
-    if (!event_initialized(&sar_fd) && sar_open_fd()) {
+    if (!sar_fd && sar_open_fd()) {
         sar_request_fail(req, RCODE_SOCKET_FAILURE);
         return;
     }
@@ -2000,7 +2001,9 @@ static struct sar_family_helper sar_ipv6_helper = {
 
 static void sar_cleanup(void)
 {
-    event_del(&sar_fd);
+    event_free(sar_timeout);
+    if (sar_fd)
+        event_free(sar_fd);
     set_clear(&sar_nameservers, 0);
     set_clear(&services_byname, 0);
     set_clear(&services_byport, 0);
@@ -2013,7 +2016,7 @@ void sar_init(void)
     conf.sar_root = conf_register_object(NULL, "resolver");
     services_byname.compare = set_compare_charp;
     services_byport.compare = set_compare_int;
-    evtimer_set(&sar_timeout, sar_timeout_cb, &sar_timeout);
+    sar_timeout = evtimer_new(ev_base, sar_timeout_cb, NULL);
 
     sar_register_helper(&sar_ipv4_helper);
 #if defined(AF_INET6)

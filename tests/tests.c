@@ -124,7 +124,7 @@ void test_is(const char *got, const char *expected, const char *fmt, ...)
     va_list args;
     int val;
 
-    val = got && expected && !strcmp(got, expected);
+    val = (!got && !expected) || (got && expected && !strcmp(got, expected));
     va_start(args, fmt);
     test_vok(val, fmt, args);
     va_end(args);

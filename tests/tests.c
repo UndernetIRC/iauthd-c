@@ -249,7 +249,7 @@ static void tests_execute(UNUSED_ARG(int fd), UNUSED_ARG(short evt), UNUSED_ARG(
         unsigned int ii;
 
         if (test_skip_all) {
-            event_loopbreak();
+            event_base_loopbreak(ev_base);
             return;
         } else if (test_count && !test_no_plan) {
             printf("1..%d\n", test_count);
@@ -271,7 +271,7 @@ static void tests_execute(UNUSED_ARG(int fd), UNUSED_ARG(short evt), UNUSED_ARG(
     }
     funlockfile(stdout);
 
-    event_loopbreak();
+    event_base_loopbreak(ev_base);
 }
 
 void module_constructor(UNUSED_ARG(const char name[]))
@@ -279,5 +279,5 @@ void module_constructor(UNUSED_ARG(const char name[]))
     struct timeval tv_zero = { 0, 0 };
 
     module_is_backend();
-    event_once(-1, EV_TIMEOUT, tests_execute, NULL, &tv_zero);
+    event_base_once(ev_base, -1, EV_TIMEOUT, tests_execute, NULL, &tv_zero);
 }

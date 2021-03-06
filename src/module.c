@@ -40,8 +40,6 @@ static struct set modules;
 static struct module *loading_module;
 static struct string_vector module_path;
 
-#define STAY_LOADED 1
-
 static void
 module_clean(void)
 {
@@ -70,10 +68,8 @@ module_cleanup(void *module_)
     func = dlsym(module->handle, "module_destructor");
     if (func)
         func();
-#if !STAY_LOADED
     if (module->handle)
         dlclose(module->handle);
-#endif
 }
 
 void module_init(void)

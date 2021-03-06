@@ -30,6 +30,7 @@ struct conf_node_object *conf_root;
 static void test_config(void)
 {
 	struct conf_node_string *str_child;
+	struct conf_node_string *null_child;
 	struct conf_node_string *integer_child;
 	struct conf_node_string *float_child;
 	struct conf_node_string *interval_child;
@@ -52,6 +53,9 @@ static void test_config(void)
 
 	str_child = conf_register_string(conf_root, CONF_STRING_PLAIN, "plain", "");
 	is(str_child->value, "jane", "plain config string is jane");
+
+	null_child = conf_register_string(conf_root, CONF_STRING_PLAIN, "null", NULL);
+	is(null_child->value, NULL, "null default string is carried through");
 
 	integer_child = conf_register_string(conf_root, CONF_STRING_INTEGER, "integer", "0");
 	cmp_ok(integer_child->parsed.p_integer, "==", 321, "integer config == 321");
@@ -109,6 +113,6 @@ void module_constructor(const char name[])
 {
 	module_depends("tests", NULL);
 	conf_root = conf_register_object(NULL, name);
-	plan(test_config, 16);
+	plan(test_config, 17);
 	plan(test_config_2, 5);
 }

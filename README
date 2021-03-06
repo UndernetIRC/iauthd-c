@@ -104,3 +104,6 @@ Some testing should exercise code coverage.  To do this:
   genhtml coverage.info --output-directory lcov
   sensible-browser lcov/index.html
 (This assumes "lcov" and "sensible-utils" are installed.)
+
+To ensure a clean slate for the next code coverage run:
+  rm -f coverage.info */*.gcda */*.gcno -r lcov

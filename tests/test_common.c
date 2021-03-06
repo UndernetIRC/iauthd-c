@@ -69,9 +69,31 @@ static void test_uint_vector(void)
 	uint_vector_clear(&uv);
 }
 
+static void test_string_vector(void)
+{
+	struct string_vector sv, sv_copy;
+
+	string_vector_init(&sv, 4);
+	string_vector_append(&sv, xstrdup("Hello world"));
+
+	string_vector_init(&sv_copy, 4);
+	string_vector_append(&sv_copy, xstrdup("Goodbye world"));
+	string_vector_copy(&sv_copy, &sv);
+	test_ok(!strcmp(sv_copy.vec[0], "Hello world"),
+		"string_vector_copy() replaces destination strings");
+
+	string_vector_clear_int(&sv_copy);
+	string_vector_clear_int(&sv);
+}
+
 void module_constructor(UNUSED_ARG(const char name[]))
 {
 	module_depends("tests", NULL);
 	plan(test_char_vector, 6);
 	plan(test_uint_vector, 1);
+	plan(test_string_vector, 1);
+}
+
+void module_post_init(UNUSED_ARG(struct module *self))
+{
 }

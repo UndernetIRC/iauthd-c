@@ -65,6 +65,8 @@ static void test_uint_vector(void)
 	for (ii = 0; ii < 12; ++ii)
 		uint_vector_append(&uv, ii);
 	cmp_ok(uv.used, "==", 12, "uint vector has 12 elements");
+
+	uint_vector_clear(&uv);
 }
 
 void module_constructor(UNUSED_ARG(const char name[]))

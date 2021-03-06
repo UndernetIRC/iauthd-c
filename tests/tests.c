@@ -274,6 +274,11 @@ static void tests_execute(UNUSED_ARG(int fd), UNUSED_ARG(short evt), UNUSED_ARG(
     event_base_loopbreak(ev_base);
 }
 
+void module_destructor(void)
+{
+    test_list_clear(&test_list);
+}
+
 void module_constructor(UNUSED_ARG(const char name[]))
 {
     struct timeval tv_zero = { 0, 0 };

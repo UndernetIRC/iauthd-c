@@ -802,6 +802,11 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
 
     /* Parse out the start of the line (simple, standard bits). */
     while ((line = evbuffer_readln(iauth_in_v, &len, EVBUFFER_EOL_CRLF)) != NULL) {
+        if (len == 0) {
+            free(line);
+            continue;
+        }
+
         log_message(iauth_log, LOG_DEBUG, "> %s", line);
         id = strtol(line, &sep, 10);
 
@@ -827,12 +832,8 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
         if (id == -1 || argv[0][0] == 'C')
             req = NULL;
         else if (!(req = set_find(iauth_reqs, &id))) {
-            /* We don't log this because it happens during normal
-             * client disconnects.
-            log_message(iauth_log, LOG_DEBUG, " .. no client found for id %d", id);
-            */
             free(line);
-            return;
+            continue;
         }
 
         /* Dispatch based on the command. */

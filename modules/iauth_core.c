@@ -172,9 +172,8 @@ struct iauth_request *iauth_find_request(int client_id)
 /** Creates an iauthd-c standard routing string for a request.
  *
  * At the current time, the standard routing format contains the
- * ircd-assigned client identifier, a forward slash, the client's IP
- * address, a forward slash, and the client port number, in that
- * order.
+ * ircd-assigned client identifier (in hex), an underscore, and the
+ * iauthd-c-assigned serial number for the IAuth request (in hex).
  *
  * \todo Change the format to use a hash of the client info instead
  *

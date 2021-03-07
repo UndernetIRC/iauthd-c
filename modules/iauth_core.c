@@ -795,6 +795,7 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
         return;
     }
     if (res == 0) {
+        clean_exit = 1;
         log_message(log_core, LOG_INFO, "Terminating due to EOF on input");
         event_base_loopbreak(ev_base);
         return;

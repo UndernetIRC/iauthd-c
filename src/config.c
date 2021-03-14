@@ -902,9 +902,10 @@ static int conf_replace_value(struct conf_node_base *target_, struct conf_node_b
                     modified = 1;
                 } else if (res < 0) {
                     /* No longer present: revert to default value. */
+                    next = set_next(tnode);
                     if (conf_replace_value(set_node_data(tnode), NULL))
                         modified = 1;
-                    tnode = set_next(tnode);
+                    tnode = next;
                 } else {
                     /* Present in both: update value. */
                     conf_replace_value(set_node_data(tnode), set_node_data(snode));

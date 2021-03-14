@@ -232,7 +232,7 @@ unsigned int irc_pton(irc_inaddr *addr, unsigned int *bits, const char *input, i
         case '*':
             while (input[++pos] == '*') ;
             if (input[pos] != '\0' || cpos < 8)
-                return allow_trailing ? pos : 0;
+                return 0;
             if (bits)
                 *bits = ii * 16;
             return pos;

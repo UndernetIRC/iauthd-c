@@ -377,6 +377,7 @@ static void conf_inaddr_resolved(int result, struct evutil_addrinfo *res, void *
     else if (res) {
         node->addr = copy_addrinfo(res);
         node->state = CA_VALID;
+        evutil_freeaddrinfo(res);
     } else {
         node->addr = NULL;
         node->state = CA_FAILED;

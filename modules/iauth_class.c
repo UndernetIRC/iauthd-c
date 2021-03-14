@@ -251,6 +251,9 @@ static IAUTH_RULE_FUNC(iauth_class_rule_check)
     if (rule->username && fnmatch(rule->username, req->auth_username, 0))
         return 0;
 
+    if (rule->hostname && fnmatch(rule->hostname, req->hostname, 0))
+        return 0;
+
     if (rule->xreply_ok && (iauth_xreply_ok(req, rule->xreply_ok) <= 0))
         return 0;
 

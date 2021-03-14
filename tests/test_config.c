@@ -37,6 +37,7 @@ static void test_config(void)
 	struct conf_node_string *volume_child;
 	struct conf_node_string_list *list_child;
 	struct conf_node_inaddr *inaddr_child;
+	struct string_vector default_sv;
 	void *child;
 	int res, valid;
 
@@ -80,9 +81,16 @@ static void test_config(void)
 	inaddr_child = conf_register_inaddr(conf_root, "inaddr", "", "");
 	is(inaddr_child->hostname, "::1", "inaddr hostname is ::1");
 	is(inaddr_child->service, "8080", "inaddr service is 8080");
+	cmp_ok(conf_inaddr_validate(inaddr_child), "!=", CA_UNKNOWN, "inaddr validation");
 
 	child = conf_get_child(conf_root, "plain", CONF_STRING);
 	ok((child == str_child), "can look up config string");
+
+	string_vector_init(&default_sv, 4);
+	string_vector_append(&default_sv, "hello world");
+	list_child = conf_register_string_list_sv(conf_root, "list_sv", &default_sv);
+	cmp_ok(list_child->value.used, "==", 1, "expected list_sv to have one item");
+	string_vector_clear(&default_sv);
 }
 
 static void test_config_2(void)
@@ -113,6 +121,6 @@ void module_constructor(const char name[])
 {
 	module_depends("tests", NULL);
 	conf_root = conf_register_object(NULL, name);
-	plan(test_config, 17);
+	plan(test_config, 19);
 	plan(test_config_2, 5);
 }

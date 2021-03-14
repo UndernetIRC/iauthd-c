@@ -37,6 +37,7 @@ check_LTLIBRARIES = \
 	tests/test_bitset.la \
 	tests/test_common.la \
 	tests/test_config.la \
+	tests/test_iauth.la \
 	tests/test_set.la \
 	tests/tests.la
 
@@ -51,6 +52,9 @@ tests_test_common_la_LDFLAGS = $(TEST_LDFLAGS)
 
 tests_test_config_la_SOURCES = tests/test_config.c
 tests_test_config_la_LDFLAGS = $(TEST_LDFLAGS)
+
+tests_test_iauth_la_SOURCES = tests/test_iauth.c
+tests_test_iauth_la_LDFLAGS = $(TEST_LDFLAGS)
 
 tests_test_set_la_SOURCES = tests/test_set.c
 tests_test_set_la_LDFLAGS = $(TEST_LDFLAGS)

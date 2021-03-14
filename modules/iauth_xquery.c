@@ -275,6 +275,7 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
     struct iauth_request *req;
     void *ptr;
     unsigned int ii;
+    int final_reply = 0;
 
     /* Find the client. */
     req = iauth_validate_request(routing);
@@ -296,18 +297,15 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
     if (!srv)
         return;
 
-    /* Update both the client's record and the service's. */
-    cli->ref_mask &= ~(1u << ii);
-    if (--srv->refs == 0)
-        iauth_xquery_unref(ii);
-
     /* Handle the response. */
     if (!reply) {
+        final_reply = -1;
         srv->unlinked++;
         if (srv->type != DRONECHECK)
             iauth_challenge(req, "The login server is currently disconnected.  Please excuse the inconvenience.");
     } else if (reply[0] == 'O' && reply[1] == 'K'
                && (reply[2] == '\0' || reply[2] == ' ')) {
+        final_reply = 1;
         cli->ok_mask |= 1u << ii;
         if (reply[2] != ' ') {
             srv->good_no_acct++;
@@ -331,16 +329,12 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
                         srv->name);
             srv->good_no_acct++;
         }
-
-        if (cli->ref_mask == 0) {
-            --req->soft_holds;
-            iauth_check_request(req);
-        }
     } else if (0 == strncmp(reply, "NO ", 3)) {
         srv->bad++;
         if (req->account[0] != '\0')
             srv->bad_acct++;
         iauth_kill(req, reply + 3);
+        return;
     } else if (0 == strncmp(reply, "AGAIN ", 6)) {
         iauth_challenge(req, reply + 6);
     } else if (0 == strncmp(reply, "MORE ", 5)) {
@@ -348,6 +342,19 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
         iauth_challenge(req, reply + 5);
     } else {
         log_message(iauth_xquery_log, LOG_WARNING, "Unexpected XR reply: %s", reply);
+    }
+
+    if (final_reply) {
+        /* Update both the client's record and the service's. */
+        cli->ref_mask &= ~(1u << ii);
+        if (--srv->refs == 0)
+            iauth_xquery_unref(ii);
+
+        /* If this was a last OK-type response, approve the client. */
+        if ((final_reply > 0) && (cli->ref_mask == 0)) {
+            req->soft_holds--;
+            iauth_check_request(req);
+        }
     }
 }
 

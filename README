@@ -92,18 +92,13 @@ later should be harmless.)
   autoreconf -Wall -i
   mkdir +build
   cd +build
-  ../configure --enable-silent-rules
+  ../configure
   make
 
 Testing
 =======
 
-Some testing should exercise code coverage.  To do this:
-  make clean CFLAGS="-g -fprofile-arcs -ftest-coverage" LDFLAGS="-coverage" check
-  lcov --capture --directory . --output-file coverage.info
-  genhtml coverage.info --output-directory lcov
-  sensible-browser lcov/index.html
-(This assumes "lcov" and "sensible-utils" are installed.)
-
-To ensure a clean slate for the next code coverage run:
-  rm -f coverage.info */*.gcda */*.gcno -r lcov
+Some testing should exercise code coverage.  To do this, use the
+./tests/code-coverage.sh script, or something like it.  That script
+assumes the sensible-utils package is installed to launch a "sensible"
+web browser.

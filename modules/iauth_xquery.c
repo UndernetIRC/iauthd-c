@@ -222,6 +222,7 @@ static void iauth_xquery_report_stats(void)
 {
     unsigned int ii;
 
+    iauth_report_stats(&iauth_xquery, "service queries ok ok+a bad bad/a unlinked");
     for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
         struct iauth_xquery_service *srv = iauth_xquery_services.vec[ii];
 

@@ -465,17 +465,35 @@ static int iauth_collect_config()
 static void iauth_collect_stats(int terminator_last)
 {
     struct iauth_module *mod;
+    struct iauth_request *req;
     struct set_node *node;
+    struct timeval now;
+    unsigned long age;
 
     if (!terminator_last)
         iauth_send(NULL, "s");
-    iauth_send(NULL, "S iauth :%lu-%lu reqs alloc; %lu data frees",
-        stats.n_req_allocs, stats.n_req_frees, stats.n_req_data_frees);
+
+    iauth_send(NULL, "S iauth :%lu-%lu reqs alloc, %lu in use; %lu data frees",
+        stats.n_req_allocs, stats.n_req_frees, set_size(iauth_reqs), stats.n_req_data_frees);
+    /* Report any very old (stale) requests. */
+    if (0 == event_base_gettimeofday_cached(ev_base, &now)) {
+        for (node = set_first(iauth_reqs); node; node = set_next(node)) {
+            req = set_node_data(node);
+            age = now.tv_sec - req->start_time;
+            if (age >= 10) {
+                iauth_send(NULL, "S iauth :%d_%u %lu sec old, %d+%d holds, %d state, %#x flags",
+                    req->client, req->serial, age, req->holds, req->soft_holds,
+                    req->state, req->flags.bits[0]);
+            }
+        }
+    }
+
     for (node = set_first(iauth_modules); node; node = set_next(node)) {
         mod = ENCLOSING_STRUCT(node, struct iauth_module, node);
         if (mod->get_stats)
                 mod->get_stats();
     }
+
     if (terminator_last)
         iauth_send(NULL, "s");
 }
@@ -504,6 +522,10 @@ static void parse_new_client(int id, int argc, char *argv[])
     req->local_port = strtol(argv[4], NULL, 10);
     req->data.compare = set_compare_voidp;
     set_insert(iauth_reqs, node);
+
+    /* What time are we starting this request? */
+    if (0 == event_base_gettimeofday_cached(ev_base, &timeout))
+        req->start_time = timeout.tv_sec;
 
     /* Do we have a timeout? */
     timeout.tv_sec = iauth_conf_timeout->parsed.p_interval;

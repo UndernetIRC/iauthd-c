@@ -159,6 +159,9 @@ struct iauth_request {
      */
     int soft_holds;
 
+    /** Time when this request was created. */
+    time_t start_time;
+
     /** Timer event that fires when the IAuth request has been active
      * for too long.
      */

@@ -689,7 +689,7 @@ int iauth_xreply_ok(struct iauth_request *request, const char *service)
     for (ii = 0; ii < iauth_xquery_services.used; ++ii)
     {
         srv = iauth_xquery_services.vec[ii];
-        if (strcasecmp(service, srv->name))
+        if (!srv || strcasecmp(service, srv->name))
             continue;
         if ((cli->ok_mask & (1u << ii)) != 0)
             return 1;

@@ -430,7 +430,8 @@ void iauth_soft_done(struct iauth_request *req)
 static void iauth_req_cleanup(void *ptr)
 {
     struct iauth_request *req = ptr;
-    event_free(req->timeout);
+    if (req->timeout)
+        event_free(req->timeout);
     stats.n_req_data_frees += set_size(&req->data);
     set_clear(&req->data, 0);
 }
@@ -507,9 +508,12 @@ static void parse_new_client(int id, int argc, char *argv[])
     /* Do we have a timeout? */
     timeout.tv_sec = iauth_conf_timeout->parsed.p_interval;
     timeout.tv_usec = 0;
-    req->timeout = evtimer_new(ev_base, iauth_timeout, req);
-    if (timeout.tv_sec > 0)
+    if (timeout.tv_sec > 0) {
+        req->timeout = evtimer_new(ev_base, iauth_timeout, req);
         evtimer_add(req->timeout, &timeout);
+    } else {
+        req->timeout = NULL;
+    }
 
     /* Broadcast the message. */
     for (node = set_first(iauth_modules); node; node = set_next(node)) {

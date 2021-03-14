@@ -461,6 +461,7 @@ static void iauth_xquery_check_password(struct iauth_request *req,
         return;
     while (*pw != ' ') {
         switch (*pw++) {
+        case '\0': return;
         case '+': set = 1; break;
         case '-': set = 0; break;
 

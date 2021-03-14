@@ -284,7 +284,7 @@ void iauth_report_config(struct iauth_module *module, const char fmt[], ...)
     va_list args;
     char config[1024];
 
-    if (0 == memcmp(name, pfx, pfx_len))
+    if (0 == strncmp(name, pfx, pfx_len))
         name += pfx_len;
     va_start(args, fmt);
     vsnprintf(config, sizeof(config), fmt, args);
@@ -300,7 +300,7 @@ void iauth_report_stats(struct iauth_module *module, const char fmt[], ...)
     va_list args;
     char stats[1024];
 
-    if (0 == memcmp(name, pfx, pfx_len))
+    if (0 == strncmp(name, pfx, pfx_len))
         name += pfx_len;
     va_start(args, fmt);
     vsnprintf(stats, sizeof(stats), fmt, args);

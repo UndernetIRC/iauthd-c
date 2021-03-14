@@ -335,14 +335,14 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
             --req->soft_holds;
             iauth_check_request(req);
         }
-    } else if (0 == memcmp(reply, "NO ", 3)) {
+    } else if (0 == strncmp(reply, "NO ", 3)) {
         srv->bad++;
         if (req->account[0] != '\0')
             srv->bad_acct++;
         iauth_kill(req, reply + 3);
-    } else if (0 == memcmp(reply, "AGAIN ", 6)) {
+    } else if (0 == strncmp(reply, "AGAIN ", 6)) {
         iauth_challenge(req, reply + 6);
-    } else if (0 == memcmp(reply, "MORE ", 5)) {
+    } else if (0 == strncmp(reply, "MORE ", 5)) {
         cli->more_mask |= 1u << ii;
         iauth_challenge(req, reply + 5);
     } else {

@@ -294,7 +294,7 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
         if ((srv != NULL) && (0 == strcmp(service, srv->name)))
             break;
     }
-    if (!srv)
+    if (ii >= iauth_xquery_services.used)
         return;
 
     /* Handle the response. */

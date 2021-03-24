@@ -345,16 +345,28 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
     }
 
     if (final_reply) {
+        int do_check = 0;
+
         /* Update both the client's record and the service's. */
         cli->ref_mask &= ~(1u << ii);
         if (--srv->refs == 0)
             iauth_xquery_unref(ii);
 
+        /* If this is a drone check, release a hard hold. */
+        if (srv->type == DRONECHECK || srv->type == COMBINED) {
+            do_check = 1;
+            req->holds--;
+        }
+
         /* If this was a last OK-type response, approve the client. */
         if ((final_reply > 0) && (cli->ref_mask == 0)) {
+            do_check = 1;
             req->soft_holds--;
-            iauth_check_request(req);
         }
+
+        /* Might we be able to disposition the client? */
+        if (do_check)
+            iauth_check_request(req);
     }
 }
 
@@ -440,6 +452,8 @@ static void iauth_xquery_check(struct iauth_request *req,
                           req->text_addr, hostname, username,
                           cli->password);
 
+        if (srv->type == DRONECHECK || srv->type == COMBINED)
+            req->holds++;
         srv->queries++;
         srv->refs++;
         if (!cli->ref_mask)

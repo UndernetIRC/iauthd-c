@@ -154,7 +154,7 @@ struct iauth_request {
     int holds;
 
     /** Number of "soft holds" on the client.  IAuth will send a "Soft
-     * Done" message when the number of holds less than one but this
+     * Done" message when the number of holds is less than one but this
      * is positive.
      */
     int soft_holds;

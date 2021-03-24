@@ -83,6 +83,9 @@
  * contain spaces, they must be at the end of the line, which means a
  * combined login+drone-checking service needs at least two lines from
  * IAuth.
+ *
+ * A combined service will only get the CHECK line for clients who do
+ * not send a (recognized) password.
  */
 
 #include "modules/iauth.h"
@@ -389,7 +392,7 @@ static void iauth_xquery_new_client(struct iauth_request *req)
 }
 
 static void iauth_xquery_check(struct iauth_request *req,
-                               enum iauth_flags flag)
+                               UNUSED_ARG(enum iauth_flags flag))
 {
     struct iauth_xquery_client *cli;
     struct iauth_xquery_service *srv;
@@ -418,6 +421,10 @@ static void iauth_xquery_check(struct iauth_request *req,
                 || (srv->type == DRONECHECK)))
             continue; /* already asked this server */
 
+        if ((srv->type == LOGIN || srv->type == LOGIN_IPR)
+            && !cli->password[0])
+            continue; /* do not send a login-type request with no password */
+
         if (BITSET_H_ANDNOT(iauth_xquery_flags[srv->type], req->flags))
             continue; /* missing necessary information */
 
@@ -445,7 +452,9 @@ static void iauth_xquery_check(struct iauth_request *req,
                           req->nickname, username, req->text_addr,
                           hostname, req->realname);
 
-        if (srv->type == LOGIN || srv->type == COMBINED)
+        if (!cli->password[0]) {
+            /* do not send a login-type line */
+        } else if (srv->type == LOGIN || srv->type == COMBINED)
             iauth_x_query(srv->name, routing, "LOGIN %s", cli->password);
         else if (srv->type == LOGIN_IPR)
             iauth_x_query(srv->name, routing, "LOGIN2 %s %s %s %s",

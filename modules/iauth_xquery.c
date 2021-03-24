@@ -551,6 +551,10 @@ static void iauth_xquery_password(struct iauth_request *req,
                 continue;
             iauth_x_query(srv->name, routing, "MORE %s", password);
             cli->more_mask &= ~(1u << ii);
+            if (!cli->ref_mask)
+                req->soft_holds++;
+            cli->ref_mask |= 1u << ii;
+            srv->refs++;
         }
     }
 }

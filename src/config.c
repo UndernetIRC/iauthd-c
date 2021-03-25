@@ -794,6 +794,7 @@ static int conf_replace_value(struct conf_node_base *target_, struct conf_node_b
     assert(target_ != NULL);
     if (source_ && (target_->type != source_->type)) {
         set_remove(&target_->parent->contents, target_, 0);
+        set_insert(&target_->parent->contents, set_node(source_));
         return 1;
     }
 

@@ -257,6 +257,9 @@ static IAUTH_RULE_FUNC(iauth_class_rule_check)
     if (rule->xreply_ok && (iauth_xreply_ok(req, rule->xreply_ok) <= 0))
         return 0;
 
+    log_message(iauth_class_log, LOG_DEBUG, "Applying rule %s to %d_%d",
+        rule->name, req->client, req->serial);
+
     if (rule->trust_username && (req->auth_username[0] == '~')) {
         int ofs = (req->cli_username[0] == '~');
         iauth_trust_username(req, req->cli_username + ofs);

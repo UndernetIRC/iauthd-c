@@ -249,9 +249,11 @@ void iauth_check_request(struct iauth_request *request)
         && !BITSET_H_ANDNOT(iauth_flags, request->flags)) {
         if (request->soft_holds == 0)
             iauth_accept(request);
-        else if (!BITSET_GET(request->flags, IAUTH_SOFT_DONE))
+        else if (!BITSET_GET(request->flags, IAUTH_SOFT_DONE)) {
+            log_message(iauth_log, LOG_DEBUG, " -> client %d still has %d soft hold(s)",
+                request->client, request->soft_holds);
             iauth_soft_done(request);
-        else
+        } else
             log_message(iauth_log, LOG_DEBUG, " -> client %d already had soft done", request->client);
     } else if (request->holds) {
         log_message(iauth_log, LOG_DEBUG, " -> client %d has %d holds",

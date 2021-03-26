@@ -313,8 +313,11 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
                    || (srv->type == LOGIN_IPR)
                    || (srv->type == COMBINED)) {
             iauth_xquery_set_account(req, reply + 3);
-            if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
+            if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY)) {
                 req->holds--;
+                log_message(iauth_xquery_log, LOG_DEBUG,
+                    "release hold on %s for %s", routing, reply);
+            }
             if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST)
                 || BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
                 iauth_user_mode(req, "+x");
@@ -331,8 +334,11 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
         }
 
         /* If this is from a drone check, release a hard hold. */
-        if (srv->type == DRONECHECK || srv->type == COMBINED)
+        if (srv->type == DRONECHECK || srv->type == COMBINED) {
             req->holds--;
+            log_message(iauth_xquery_log, LOG_DEBUG,
+                "release hold on %s for %s", routing, srv->name);
+        }
     } else if (0 == strncmp(reply, "NO ", 3)) {
         srv->bad++;
         if (req->account[0] != '\0')
@@ -351,6 +357,8 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
 
     /* Update both the client's record and the service's. */
     cli->ref_mask &= ~(1u << ii);
+    log_message(iauth_xquery_log, LOG_DEBUG,
+        "%s-%s: ref_mask=%#x", routing, srv->name, cli->ref_mask);
     if (--srv->refs == 0)
         iauth_xquery_unref(ii);
     if (cli->ref_mask == 0)
@@ -446,14 +454,20 @@ static void iauth_xquery_check(struct iauth_request *req,
                           req->text_addr, hostname, username,
                           cli->password);
 
-        if (srv->type == DRONECHECK || srv->type == COMBINED)
+        if (srv->type == DRONECHECK || srv->type == COMBINED) {
             req->holds++;
+            log_message(iauth_xquery_log, LOG_DEBUG,
+                "hold on %s for %s", routing, srv->name);
+        }
         srv->queries++;
         srv->refs++;
         if (!cli->ref_mask)
             req->soft_holds++;
         cli->ref_mask |= 1u << ii;
         cli->sent_mask |= 1u << ii;
+        log_message(iauth_xquery_log, LOG_DEBUG,
+            "%s+%s: ref_mask=%#x and sent_mask=%#x",
+            routing, srv->name, cli->ref_mask, cli->sent_mask);
     }
 }
 
@@ -511,10 +525,15 @@ static void iauth_xquery_check_password(struct iauth_request *req,
     BITSET_OR(cli->modes, cli->modes, m_set);
     is_hidden_only = BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY);
     no_account = req->account[0] == '\0';
-    if (is_hidden_only && !was_hidden_only && no_account)
+    if (is_hidden_only && !was_hidden_only && no_account) {
         req->holds++;
-    else if (!is_hidden_only && was_hidden_only && no_account)
+        log_message(iauth_xquery_log, LOG_DEBUG,
+            "hold for %d for !+x", req->client);
+    } else if (!is_hidden_only && was_hidden_only && no_account) {
         req->holds--;
+        log_message(iauth_xquery_log, LOG_DEBUG,
+            "release hold for %d because -!", req->client);
+    }
 
     /* Looks good, save and send the password. */
     strncpy(cli->password, pw, sizeof(cli->password) - 1);
@@ -551,8 +570,11 @@ static void iauth_xquery_password(struct iauth_request *req,
                 continue;
             iauth_x_query(srv->name, routing, "MORE %s", password);
             cli->more_mask &= ~(1u << ii);
-            if (!cli->ref_mask)
+            if (!cli->ref_mask) {
                 req->soft_holds++;
+                log_message(iauth_xquery_log, LOG_DEBUG,
+                    "adding soft hold on %s for MORE %s", routing, srv->name);
+            }
             cli->ref_mask |= 1u << ii;
             srv->refs++;
         }

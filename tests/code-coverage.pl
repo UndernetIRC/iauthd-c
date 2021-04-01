@@ -215,7 +215,22 @@ $exp->send(<<"HERE");
 26 n NickNolte
 26 D
 HERE
-# No response is expected here.
+$exp->expect(1, '-re', '^X botcheck.example.org 1a_8 :CHECK NickNolte ~username 127.3.4.5 127.3.4.5 :r300 might fire, but iauth_xquery is still waiting\r?$')
+	or die "did not check CHECK request for client 26\n";
+
+# Client 27 checks that clients get a "soft done" with no dronecheck.
+$exp->send(<<"HERE");
+27 C 127.4.5.6 23456 127.0.0.1 7701
+27 N untrusted.example.org
+27 U ~joe-user :I may be a drone
+27 u mccarthy
+27 n joe
+HERE
+$exp->expect(1, '-re', '^X botcheck.example.org 1b_9 :CHECK joe mccarthy 127.4.5.6 untrusted.example.org :I may be a drone\r?$')
+	or die "did not get CHECK request for client 27\n";
+$exp->send("-1 x botcheck.example.org 1b_9\n");
+$exp->expect(1, '-re', '^d 27 127.4.5.6 23456')
+	or die "did not get soft done for client 27\n";
 
 # We should (a) handle lines with trailing whitespace and (b) ignore
 # client numbers that do not have a current request pending.  We should

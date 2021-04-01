@@ -332,13 +332,6 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
                         srv->name);
             srv->good_no_acct++;
         }
-
-        /* If this is from a drone check, release a hard hold. */
-        if (srv->type == DRONECHECK || srv->type == COMBINED) {
-            req->holds--;
-            log_message(iauth_xquery_log, LOG_DEBUG,
-                "release hold on %s for %s", routing, srv->name);
-        }
     } else if (0 == strncmp(reply, "NO ", 3)) {
         srv->bad++;
         if (req->account[0] != '\0')
@@ -454,11 +447,6 @@ static void iauth_xquery_check(struct iauth_request *req,
                           req->text_addr, hostname, username,
                           cli->password);
 
-        if (srv->type == DRONECHECK || srv->type == COMBINED) {
-            req->holds++;
-            log_message(iauth_xquery_log, LOG_DEBUG,
-                "hold on %s for %s", routing, srv->name);
-        }
         srv->queries++;
         srv->refs++;
         if (!cli->ref_mask)

@@ -30,7 +30,6 @@
 
 #include "autoconf.h"
 
-#define _POSIX_C_SOURCE 200809L
 #if !defined(NDEBUG)
 # define _FORTIFY_SOURCE 2
 #endif

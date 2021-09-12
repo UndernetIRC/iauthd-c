@@ -45,20 +45,12 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(HAVE_INTTYPES_H)
 #include <inttypes.h>
 #elif defined(HAVE_STDINT_H)
 #include <stdint.h>
-#endif
-
-#if defined(TIME_WITH_SYS_TIME)
-# include <sys/time.h>
-# include <time.h>
-#elif defined(HAVE_SYS_TIME_H)
-# include <sys/time.h>
-#else
-# include <time.h>
 #endif
 
 #ifdef HAVE_SYS_TYPES_H

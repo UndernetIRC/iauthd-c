@@ -29,7 +29,7 @@ TESTS = \
 	tests/test_all.sh
 
 EXTRA_DIST += \
-	tests/iauthd-c.conf \
+	tests/unit-tests.conf \
 	tests/test_all.sh
 
 check_LTLIBRARIES = \

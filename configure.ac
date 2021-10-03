@@ -23,8 +23,8 @@
 # SOFTWARE.
 
 dnl General initialization.
-AC_PREREQ([2.71])
-AC_INIT([iauthd-c],[1.0.4],[coder-com@undernet.org])
+AC_PREREQ([2.63])
+AC_INIT([iauthd-c], [1.0.4], [coder-com@undernet.org])
 AC_CONFIG_AUX_DIR([autoconf])
 AC_CONFIG_MACRO_DIR([autoconf])
 AC_CONFIG_HEADERS([autoconf.h])
@@ -46,7 +46,8 @@ AC_PROG_MKDIR_P
 dnl Compiler/runtime feature checks.
 AC_C_CONST
 AC_C_INLINE
-AC_CHECK_INCLUDES_DEFAULT
+AC_HEADER_STDC
+AC_HEADER_TIME
 AC_STRUCT_TM
 
 dnl Check whether we might be running in a git working tree.

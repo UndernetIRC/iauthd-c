@@ -56,6 +56,7 @@ AM_CONDITIONAL(HAS_GIT, test z$GIT != z -a -r ${srcdir}/.git)
 
 dnl Check libraries.
 AC_CHECK_LIB(dl, dlopen)
+AC_CHECK_LIB(rt, clock_gettime)
 AC_CHECK_LIB(socket, socket)
 AC_CHECK_LIB(event, event_dispatch,, AC_MSG_ERROR(
   [libevent2 must be installed to build iauthd-c.]))

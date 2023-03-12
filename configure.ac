@@ -42,6 +42,7 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_MKDIR_P
+PKG_CHECK_MODULES([EVENT], [libevent >= 2.1])
 
 dnl Compiler/runtime feature checks.
 AC_C_CONST
@@ -58,8 +59,6 @@ dnl Check libraries.
 AC_CHECK_LIB(dl, dlopen)
 AC_CHECK_LIB(rt, clock_gettime)
 AC_CHECK_LIB(socket, socket)
-AC_CHECK_LIB(event, event_dispatch,, AC_MSG_ERROR(
-  [libevent2 must be installed to build iauthd-c.]))
 AC_CHECK_TYPE(evutil_socket_t,
   AC_DEFINE(HAVE_EVUTIL_SOCKET_T, 1, [Define if <evutil.h> defines evutil_socket_t]),, [#include <evutil.h>])
 

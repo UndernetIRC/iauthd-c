@@ -32,6 +32,7 @@ AM_CFLAGS = $(STRICT_CFLAGS) $(EVENT_CFLAGS) -I$(top_srcdir) -I$(top_builddir)
 AM_CPPFLAGS = -DSYSCONFDIR="\"$(sysconfdir)\"" -DMODULESDIR="\"$(pkglibdir)\"" -DLOGDIR="\"$(LOGDIR)\""
 AM_LDFLAGS = -module -avoid-version -export-dynamic
 EXTRA_DIST =
+DISTCLEANFILES = unit-tests.log
 
 include $(srcdir)/doc/Makefile.frag
 include $(srcdir)/src/Makefile.frag

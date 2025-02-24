@@ -307,6 +307,7 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
     } else if (reply[0] == 'O' && reply[1] == 'K'
                && (reply[2] == '\0' || reply[2] == ' ')) {
         cli->ok_mask |= 1u << ii;
+        cli->more_mask &= ~(1u << ii);
         if (reply[2] != ' ') {
             srv->good_no_acct++;
         } else if ((srv->type == LOGIN)

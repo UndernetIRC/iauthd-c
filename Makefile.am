@@ -40,4 +40,4 @@ include $(srcdir)/modules/Makefile.frag
 include $(srcdir)/tests/Makefile.frag
 
 install-data-local:
-	$(MKDIR_P) "$(LOGDIR)"
+	$(MKDIR_P) "$(DESTDIR)$(LOGDIR)"

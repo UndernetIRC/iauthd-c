@@ -30,7 +30,7 @@
 
 #include "autoconf.h"
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !defined(_FORTIFY_SOURCE)
 # define _FORTIFY_SOURCE 2
 #endif
 

@@ -362,6 +362,7 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
         iauth_sasl_challenge(req, reply + 5);
     } else if (0 == strncmp(reply, "MECHS ", 6)) {
         iauth_sasl_mechanisms(req, reply + 6);
+        cli->sasl_status = 0;
     } else {
         log_message(iauth_xquery_log, LOG_WARNING, "Unexpected XR reply: %s", reply);
         return;
@@ -466,8 +467,10 @@ static void iauth_xquery_check(struct iauth_request *req,
             if (flag == IAUTH_GOT_SASL) {
                 // Pass on IP in the first (mech) challenge.
                 if (!cli->sasl_status) {
-                    iauth_x_query(srv->name, routing, "SASL %s %s",
-                                  req->text_addr, req->sasl_challenge);
+                    iauth_x_query(srv->name, routing, "SASL %s %s %s",
+                                  req->text_addr,
+                                  req->tls_fingerprint[0] == '\0' ? "_" : req->tls_fingerprint,
+                                  req->sasl_challenge);
                     cli->sasl_status = 1;
                 } else {
                     iauth_x_query(srv->name, routing, "SASL %s", req->sasl_challenge);

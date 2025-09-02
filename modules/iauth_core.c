@@ -394,6 +394,30 @@ void iauth_kill(struct iauth_request *req, const char reason[])
     parse_registered(req, 0);
 }
 
+void iauth_sasl_success(struct iauth_request *req)
+{
+    iauth_send(req, "Y");
+    /* Does not change anything that affects iauth_check_request(). */
+}
+
+void iauth_sasl_fail(struct iauth_request *req, const char text[])
+{
+    iauth_send(req, "F :%s", text);
+    /* Does not change anything that affects iauth_check_request(). */
+}
+
+void iauth_sasl_challenge(struct iauth_request *req, const char text[])
+{
+    iauth_send(req, "Q :%s", text);
+    /* Does not change anything that affects iauth_check_request(). */
+}
+
+void iauth_sasl_mechanisms(struct iauth_request *req, const char text[])
+{
+    iauth_send(req, "m :%s", text);
+    /* Does not change anything that affects iauth_check_request(). */
+}
+
 static void notify_pre_registered(struct iauth_request *req)
 {
     struct iauth_module *plugin;
@@ -647,6 +671,29 @@ static void parse_user_info(struct iauth_request *req, int argc, char *argv[])
     iauth_check_request(req);
 }
 
+static void parse_fingerprint(struct iauth_request *req, char fingerprint[])
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 Z ...");
+        return;
+    }
+    if (fingerprint) {
+        strncpy(req->tls_fingerprint, fingerprint, CERTLEN);
+        req->tls_fingerprint[CERTLEN] = '\0';
+        BITSET_SET(req->flags, IAUTH_GOT_FINGERPRINT);
+    }
+
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_FINGERPRINT);
+    }
+    iauth_check_request(req);
+}
+
 static void parse_ident(struct iauth_request *req, char ident[])
 {
     struct iauth_module *plugin;
@@ -742,6 +789,41 @@ static void parse_error(struct iauth_request *req, int argc, char *argv[])
         if (plugin->error != NULL)
             plugin->error(req, argv[1], argv[2]);
     }
+}
+
+static void parse_sasl_abort(struct iauth_request *req)
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    BITSET_SET(req->flags, IAUTH_GOT_SASL_ABORT);
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_SASL_ABORT);
+    }
+    iauth_check_request(req);
+}
+
+static void parse_sasl_challenge(struct iauth_request *req, int argc, char *argv[])
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    if (argc < 1) {
+        iauth_send(req, "F");
+        return;
+    }
+
+    strncpy(req->sasl_challenge, argv[1], SASLLEN);
+    req->sasl_challenge[SASLLEN] = '\0';
+    BITSET_SET(req->flags, IAUTH_GOT_SASL);
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_SASL);
+    }
+    iauth_check_request(req);
 }
 
 static void parse_server_info(int argc, char *argv[])
@@ -866,6 +948,9 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
 
         /* Dispatch based on the command. */
         switch (argv[0][0]) {
+        case 'A':
+            parse_sasl_abort(req);
+            break;
         case 'C':
             parse_new_client(id, argc, argv);
             break;
@@ -909,6 +994,12 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
         case 'x':
             /* id is always -1 with current ircu. */
             parse_x_unlinked(argc, argv);
+            break;
+        case 'Z':
+            parse_fingerprint(req, argv[1]);
+            break;
+        case 'Y':
+            parse_sasl_challenge(req, argc, argv);
             break;
         case '?':
             /* id is always -1 with current ircu. */

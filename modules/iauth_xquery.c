@@ -120,6 +120,9 @@ struct iauth_xquery_client {
     /** Bitmask of services that sent OK responses to this client. */
     uint32_t ok_mask;
 
+    /** Set to 1 if a SASL mechanism has been passed onto the service. Reset at SASL abort. */
+    int sasl_status;
+
     /** Account name concatenated with password; empty if unknown.
      *
      * This is the value passed by the client in its *first* PASSWORD
@@ -134,6 +137,7 @@ enum iauth_xquery_type {
     LOGIN,
     LOGIN_IPR,
     DRONECHECK,
+    SASL,
     COMBINED
 };
 
@@ -142,6 +146,7 @@ static const char *type_names[] = {
     "login",
     "login-ipr",
     "dronecheck",
+    "sasl",
     "combined"
 };
 
@@ -188,7 +193,7 @@ static struct {
 static struct iauth_module iauth_xquery;
 static struct log_type *iauth_xquery_log;
 static struct iauth_xquery_services iauth_xquery_services;
-static struct iauth_flagset iauth_xquery_flags[4];
+static struct iauth_flagset iauth_xquery_flags[5];
 
 static struct {
     unsigned long n_cli_allocs;
@@ -303,7 +308,9 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
     if (!reply) {
         srv->unlinked++;
         if (srv->type != DRONECHECK)
-            iauth_challenge(req, "The login server is currently disconnected.  Please excuse the inconvenience.");
+            srv->type == SASL ?
+                iauth_sasl_fail(req, "The login server is currently disconnected.  Please excuse the inconvenience.") :
+                iauth_challenge(req, "The login server is currently disconnected.  Please excuse the inconvenience.");           
     } else if (reply[0] == 'O' && reply[1] == 'K'
                && (reply[2] == '\0' || reply[2] == ' ')) {
         cli->ok_mask |= 1u << ii;
@@ -312,7 +319,8 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
             srv->good_no_acct++;
         } else if ((srv->type == LOGIN)
                    || (srv->type == LOGIN_IPR)
-                   || (srv->type == COMBINED)) {
+                   || (srv->type == COMBINED)
+                   || (srv->type == SASL)) {
             iauth_xquery_set_account(req, reply + 3);
             if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY)) {
                 req->holds--;
@@ -322,7 +330,10 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
             if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST)
                 || BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY))
                 iauth_user_mode(req, "+x");
-            /* TODO: maybe count clients who get account stamps *and*
+            if (srv->type == SASL) {
+                iauth_sasl_success(req);
+            }
+            /* TODO: maybe count clients who get account ids *and*
              * NO responses (this would require different refcounting
              * on NO responses).
              */
@@ -337,13 +348,20 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
         srv->bad++;
         if (req->account[0] != '\0')
             srv->bad_acct++;
-        iauth_kill(req, reply + 3);
-        return;
+        if (srv->type != SASL) {
+            iauth_kill(req, reply + 3);
+            return;
+        } else
+            iauth_sasl_fail(req, reply + 3);
     } else if (0 == strncmp(reply, "AGAIN ", 6)) {
         iauth_challenge(req, reply + 6);
     } else if (0 == strncmp(reply, "MORE ", 5)) {
         cli->more_mask |= 1u << ii;
         iauth_challenge(req, reply + 5);
+    } else if (0 == strncmp(reply, "SASL ", 5)) {
+        iauth_sasl_challenge(req, reply + 5);
+    } else if (0 == strncmp(reply, "MECHS ", 6)) {
+        iauth_sasl_mechanisms(req, reply + 6);
     } else {
         log_message(iauth_xquery_log, LOG_WARNING, "Unexpected XR reply: %s", reply);
         return;
@@ -404,13 +422,18 @@ static void iauth_xquery_check(struct iauth_request *req,
             continue; /* empty or disabled server slot */
 
         if ((cli->sent_mask & (1u << ii))
-            && ((flag != IAUTH_GOT_PASSWORD)
+            && ((flag != IAUTH_GOT_PASSWORD && flag != IAUTH_GOT_SASL && flag != IAUTH_GOT_SASL_ABORT)
                 || (srv->type == DRONECHECK)))
             continue; /* already asked this server */
 
         if ((srv->type == LOGIN || srv->type == LOGIN_IPR)
             && !cli->password[0])
             continue; /* do not send a login-type request with no password */
+
+        if ((srv->type == SASL)
+            && (flag == IAUTH_GOT_SASL)
+            && !req->sasl_challenge[0])
+            continue; /* do not send a sasl challenge with no credentials */
 
         if (BITSET_H_ANDNOT(iauth_xquery_flags[srv->type], req->flags))
             continue; /* missing necessary information */
@@ -419,7 +442,7 @@ static void iauth_xquery_check(struct iauth_request *req,
             iauth_routing(req, routing, sizeof(routing));
 
         /* Populate username (if we need it). */
-        if ((srv->type != LOGIN) && (username[0] == '\0')) {
+        if ((srv->type != LOGIN && srv->type != SASL) && (username[0] == '\0')) {
             if (req->auth_username[0] != '\0') {
                 strncpy(username, req->auth_username, USERLEN+1);
             } else if (req->cli_username[0] == '~') {
@@ -439,6 +462,30 @@ static void iauth_xquery_check(struct iauth_request *req,
                           req->nickname, username, req->text_addr,
                           hostname, req->realname);
 
+        if (srv->type == SASL) {
+            if (flag == IAUTH_GOT_SASL) {
+                // Pass on IP in the first (mech) challenge.
+                if (!cli->sasl_status) {
+                    iauth_x_query(srv->name, routing, "SASL %s %s",
+                                  req->text_addr, req->sasl_challenge);
+                    cli->sasl_status = 1;
+                } else {
+                    iauth_x_query(srv->name, routing, "SASL %s", req->sasl_challenge);
+                }
+                req->sasl_challenge[0] = '\0'; /* Clear challenge after sending */
+            } else if (flag == IAUTH_GOT_SASL_ABORT) {
+                BITSET_CLEAR(req->flags, IAUTH_GOT_SASL);
+                cli->sasl_status = 0;
+                iauth_x_query(srv->name, routing, "SASL *");
+                cli->ref_mask &= ~(1u << ii);
+                if (--srv->refs == 0)
+                    iauth_xquery_unref(ii);
+                if (cli->ref_mask == 0)
+                    --req->soft_holds;
+                return;
+            }
+        }
+                          
         if (!cli->password[0]) {
             /* do not send a login-type line */
         } else if (srv->type == LOGIN || srv->type == COMBINED)
@@ -682,6 +729,8 @@ void module_constructor(UNUSED_ARG(const char name[]))
                      IAUTH_GOT_HOSTNAME,
                      IAUTH_GOT_IDENT,
                      IAUTH_GOT_PASSWORD);
+    BITSET_MULTI_SET(iauth_xquery_flags[SASL],
+                     IAUTH_GOT_SASL);
     BITSET_MULTI_SET(iauth_xquery_flags[DRONECHECK],
                      IAUTH_GOT_HOSTNAME,
                      IAUTH_GOT_IDENT,

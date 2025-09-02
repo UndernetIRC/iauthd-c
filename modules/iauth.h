@@ -97,6 +97,12 @@ unsigned int irc_check_mask(const irc_inaddr *check, const irc_inaddr *mask, uns
 /** Maximum length of an iauthd-c standard routing string. */
 #define ROUTINGLEN (IRC_NTOP_MAX + 20)
 
+/** Maximum length of a chunk of a SASL challenge. */
+#define SASLLEN 400
+
+/** Maximum length of a TLS fingerprint. */
+#define CERTLEN 64
+
 /** Possible states for a client (with respect to IAuth). */
 enum iauth_client_state {
     IAUTH_REGISTER,
@@ -121,6 +127,12 @@ enum iauth_flags {
     IAUTH_GOT_USER_INFO,
     /** Set when we get a 'P' message. */
     IAUTH_GOT_PASSWORD,
+    /** Set when we get a 'Z' message. */
+    IAUTH_GOT_FINGERPRINT,
+    /** Set when we get a SASL request. */
+    IAUTH_GOT_SASL,
+    /** Set when we get a SASL abort request. */
+    IAUTH_GOT_SASL_ABORT,
     /** Set when we get a 'H' message. */
     IAUTH_GOT_HURRY_UP,
     /** Set when we get blank 'u' message, but have not gotten 'U'. */
@@ -211,6 +223,12 @@ struct iauth_request {
 
     /** Text form of #remote_addr. */
     char text_addr[IRC_NTOP_MAX];
+
+    /** SASL challenge (being cleared after having been processed). */
+    char sasl_challenge[SASLLEN + 1];
+
+    /** TLS fingerprint. */
+    char tls_fingerprint[CERTLEN + 1];
 
     /** Contains submodule-specific data.
      *
@@ -349,6 +367,10 @@ void iauth_trust_username(struct iauth_request *req, const char username[]);
 void iauth_user_mode(struct iauth_request *req, const char modes[]);
 void iauth_weak_username(struct iauth_request *req, const char username[]);
 void iauth_x_query(const char server[], const char routing[], const char fmt[], ...) PRINTF_LIKE(3, 4);
+void iauth_sasl_success(struct iauth_request *req);
+void iauth_sasl_fail(struct iauth_request *req, const char text[]);
+void iauth_sasl_challenge(struct iauth_request *req, const char text[]);
+void iauth_sasl_mechanisms(struct iauth_request *req, const char text[]);
 
 /* Asynchronous event handlers can look up requests with these functions. */
 struct iauth_request *iauth_find_request(int client_id);

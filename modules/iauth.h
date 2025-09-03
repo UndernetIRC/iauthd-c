@@ -115,6 +115,8 @@ enum iauth_client_state {
 enum iauth_flags {
     /** Set when we have made a decision for this request. */
     IAUTH_RESPONDED,
+    /** Set when the client has sent a CAP LS but not CAP END. */
+    IAUTH_CAP_PENDING,
     /** Set when we have sent a "soft done" for this request. */
     IAUTH_SOFT_DONE,
     /** Set when we get an 'N' or 'd' message. */

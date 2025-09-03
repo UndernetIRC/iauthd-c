@@ -402,6 +402,7 @@ void iauth_sasl_success(struct iauth_request *req)
 
 void iauth_sasl_fail(struct iauth_request *req, const char text[])
 {
+    BITSET_CLEAR(req->flags, IAUTH_GOT_SASL);
     iauth_send(req, "F :%s", text);
     /* Does not change anything that affects iauth_check_request(). */
 }
@@ -432,6 +433,11 @@ static void notify_pre_registered(struct iauth_request *req)
 
 void iauth_accept(struct iauth_request *req)
 {
+    if (BITSET_GET(req->flags, IAUTH_CAP_PENDING)) {
+        log_message(iauth_log, LOG_DEBUG, " -> client %d has CAP pending, delaying registration", req->client);
+        return;
+    }
+
     assert(!BITSET_GET(req->flags, IAUTH_RESPONDED));
     notify_pre_registered(req);
     BITSET_SET(req->flags, IAUTH_RESPONDED);
@@ -954,8 +960,15 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
         case 'C':
             parse_new_client(id, argc, argv);
             break;
+        case 'c':
+            BITSET_SET(req->flags, IAUTH_CAP_PENDING);
+            break;
         case 'D':
             parse_disconnect(req);
+            break;
+        case 'e':
+            BITSET_CLEAR(req->flags, IAUTH_CAP_PENDING);
+            iauth_check_request(req);
             break;
         case 'N':
             parse_hostname(req, argv[1]);

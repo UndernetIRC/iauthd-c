@@ -60,9 +60,12 @@ iauth_xquery {
     // the exchanges):
     //  - login
     //  - login-ipr
+    //  - login-ipr-fp
     //  - dronecheck
+    //  - sasl
     //  - combined (almost like dronecheck plus login-ipr)
-    channels.example.org login-ipr
+    //  - login-sasl (login-ipr-fp plus sasl)
+    channels.example.org login-sasl
     botcheck.example.org dronecheck
 }
 

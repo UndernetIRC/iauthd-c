@@ -326,6 +326,9 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
                && (reply[2] == '\0' || reply[2] == ' ')) {
         cli->ok_mask |= 1u << ii;
         cli->more_mask &= ~(1u << ii);
+        const char *account = NULL;
+        const char *mode = NULL;
+
         if (reply[2] != ' ') {
             srv->good_no_acct++;
         } else if ((srv->type == LOGIN)
@@ -334,7 +337,28 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
                    || (srv->type == LOGIN_SASL)
                    || (srv->type == COMBINED)
                    || (srv->type == SASL)) {
-            iauth_xquery_set_account(req, reply + 3);
+            account = reply + 3;
+            // Check if "+x" has been passed in the OK message (SYNTAX: OK <username> [+x])
+            const char *space = strchr(account, ' ');
+            if (space) {
+                size_t acct_len = space - account;
+                char acct_buf[ACCOUNTLEN + 1];
+                if (acct_len > ACCOUNTLEN) acct_len = ACCOUNTLEN;
+                strncpy(acct_buf, account, acct_len);
+                acct_buf[acct_len] = '\0';
+                iauth_xquery_set_account(req, acct_buf);
+
+                mode = space + 1;
+                // Only set IAUTH_XQUERY_HIDDEN_HOST if the user is not
+                // using LoC (evidenced by IAUTH_GOT_PASSWORD having been set)
+                if (strcmp(mode, "+x") == 0 &&
+                    !BITSET_GET(req->flags, IAUTH_GOT_PASSWORD)) {
+                    BITSET_SET(cli->modes, IAUTH_XQUERY_HIDDEN_HOST);
+                }
+            } else {
+                // Only one word (account)
+                iauth_xquery_set_account(req, account);
+            }
             if (BITSET_GET(cli->modes, IAUTH_XQUERY_HIDDEN_ONLY)) {
                 req->holds--;
                 log_message(iauth_xquery_log, LOG_DEBUG,

@@ -53,6 +53,10 @@ iauth {
     //
     // This should not be used together with "verify".
     timeout 30
+
+    // If set, IAuth will kill a connection using +x!.
+    // Useful when transitioning away from LoC to SASL.
+    kill_loc "Login-on-Connect is disabled. You may authenticate using SASL. Visit http://undernet.org/sasl for more information."
 }
 
 iauth_xquery {

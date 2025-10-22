@@ -54,6 +54,9 @@ static struct conf_node_object *iauth_conf;
 /** Duration of the request timeout. */
 static struct conf_node_string *iauth_conf_timeout;
 
+/** Whether to kill connections using +x! when login, login-ipr or combined is not enabled. */
+static struct conf_node_string *iauth_conf_kill_loc;
+
 /** Last assigned serial number. */
 static unsigned int iauth_serial;
 
@@ -155,6 +158,15 @@ void iauth_unregister_module(struct iauth_module *plugin)
 {
     set_remove(iauth_modules, &plugin->owner, 1);
     calc_iauth_flags();
+}
+
+/** Returns the kill_loc configuration value. Empty if unset.
+ *
+ * \return The kill_loc configuration value. Empty string if unset.
+ */
+const char* iauth_get_kill_loc(void)
+{
+    return iauth_conf_kill_loc ? iauth_conf_kill_loc->parsed.p_string : "";
 }
 
 /** Looks up the request for \a client_id.
@@ -1018,6 +1030,7 @@ void module_constructor(UNUSED_ARG(const char name[]))
     iauth_modules = set_alloc(set_compare_charp, NULL);
     iauth_conf = conf_register_object(NULL, "iauth");
     iauth_conf_timeout = conf_register_string(iauth_conf, CONF_STRING_INTERVAL, "timeout", "0");
+    iauth_conf_kill_loc = conf_register_string(iauth_conf, CONF_STRING_PLAIN, "kill_loc", "");
 
     event_base_once(ev_base, -1, EV_TIMEOUT, iauth_startup, NULL, &tv_zero);
     iauth_in = evbuffer_new();

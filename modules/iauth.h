@@ -344,6 +344,8 @@ struct iauth_module {
 void iauth_register_module(struct iauth_module *plugin);
 void iauth_unregister_module(struct iauth_module *plugin);
 
+const char* iauth_get_kill_loc(void);
+
 /* These functions generate IAuth messages to the server. */
 void iauth_accept(struct iauth_request *req);
 void iauth_soft_done(struct iauth_request *req);

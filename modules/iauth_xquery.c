@@ -556,6 +556,9 @@ static void iauth_xquery_check_password(struct iauth_request *req,
         req->holds++;
         log_message(iauth_xquery_log, LOG_DEBUG,
             "hold for %d for !+x", req->client);
+        if (iauth_get_kill_loc()[0] != '\0') {
+            iauth_kill(req, iauth_get_kill_loc());
+        }
     } else if (!is_hidden_only && was_hidden_only && no_account) {
         req->holds--;
         log_message(iauth_xquery_log, LOG_DEBUG,

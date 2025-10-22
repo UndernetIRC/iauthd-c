@@ -97,6 +97,9 @@ unsigned int irc_check_mask(const irc_inaddr *check, const irc_inaddr *mask, uns
 /** Maximum length of an iauthd-c standard routing string. */
 #define ROUTINGLEN (IRC_NTOP_MAX + 20)
 
+/** Maximum length of a TLS fingerprint. */
+#define CERTLEN 64
+
 /** Possible states for a client (with respect to IAuth). */
 enum iauth_client_state {
     IAUTH_REGISTER,
@@ -109,6 +112,8 @@ enum iauth_client_state {
 enum iauth_flags {
     /** Set when we have made a decision for this request. */
     IAUTH_RESPONDED,
+    /** Set when the client has sent a CAP LS but not CAP END. */
+    IAUTH_CAP_PENDING,
     /** Set when we have sent a "soft done" for this request. */
     IAUTH_SOFT_DONE,
     /** Set when we get an 'N' or 'd' message. */
@@ -121,6 +126,10 @@ enum iauth_flags {
     IAUTH_GOT_USER_INFO,
     /** Set when we get a 'P' message. */
     IAUTH_GOT_PASSWORD,
+    /** Set when we get a 'Z' message. */
+    IAUTH_GOT_FINGERPRINT,
+    /** Set when we get an 'A' message. */
+    IAUTH_GOT_ACCOUNT,
     /** Set when we get a 'H' message. */
     IAUTH_GOT_HURRY_UP,
     /** Set when we get blank 'u' message, but have not gotten 'U'. */
@@ -211,6 +220,9 @@ struct iauth_request {
 
     /** Text form of #remote_addr. */
     char text_addr[IRC_NTOP_MAX];
+
+    /** TLS fingerprint. */
+    char tls_fingerprint[CERTLEN + 1];
 
     /** Contains submodule-specific data.
      *

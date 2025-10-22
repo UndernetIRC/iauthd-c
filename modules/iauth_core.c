@@ -408,6 +408,11 @@ static void notify_pre_registered(struct iauth_request *req)
 
 void iauth_accept(struct iauth_request *req)
 {
+    if (BITSET_GET(req->flags, IAUTH_CAP_PENDING)) {
+        log_message(iauth_log, LOG_DEBUG, " -> client %d has CAP pending, delaying registration", req->client);
+        return;
+    }
+
     assert(!BITSET_GET(req->flags, IAUTH_RESPONDED));
     notify_pre_registered(req);
     BITSET_SET(req->flags, IAUTH_RESPONDED);
@@ -691,6 +696,52 @@ static void parse_nick(struct iauth_request *req, char nick[])
     iauth_check_request(req);
 }
 
+static void parse_fingerprint(struct iauth_request *req, char fingerprint[])
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 Z ...");
+        return;
+    }
+    if (fingerprint) {
+        strncpy(req->tls_fingerprint, fingerprint, CERTLEN);
+        req->tls_fingerprint[CERTLEN] = '\0';
+        BITSET_SET(req->flags, IAUTH_GOT_FINGERPRINT);
+    }
+
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_FINGERPRINT);
+    }
+    iauth_check_request(req);
+}
+
+static void parse_account(struct iauth_request *req, char account[])
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 A ...");
+        return;
+    }
+    if (account) {
+        strncpy(req->account, account, ACCOUNTLEN);
+        req->account[ACCOUNTLEN] = '\0';
+        BITSET_SET(req->flags, IAUTH_GOT_ACCOUNT);
+    }
+
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_ACCOUNT);
+    }
+    iauth_check_request(req);
+}
+
 static void parse_hurry_up(struct iauth_request *req)
 {
     struct iauth_module *plugin;
@@ -890,11 +941,24 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
         case 'n':
             parse_nick(req, argv[1]);
             break;
+        case 'A':
+            parse_account(req, argv[1]);
+            break;
+        case 'Z':
+            parse_fingerprint(req, argv[1]);
+            break;
         case 'H':
             parse_hurry_up(req);
             break;
         case 'T':
             parse_registered(req, 1);
+            break;
+        case 'c':
+            BITSET_SET(req->flags, IAUTH_CAP_PENDING);
+            break;
+        case 'e':
+            BITSET_CLEAR(req->flags, IAUTH_CAP_PENDING);
+            iauth_check_request(req);
             break;
         case 'E':
             parse_error(req, argc, argv);

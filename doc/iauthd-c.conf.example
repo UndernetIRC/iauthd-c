@@ -50,6 +50,8 @@ iauth {
     // can safely be removed; with earlier versions, that will cause
     // Authorization Timeout rejections instead of accepting the
     // clients.
+    //
+    // This should not be used together with "verify".
     timeout 30
 }
 
@@ -62,8 +64,10 @@ iauth_xquery {
     //  - login-ipr
     //  - dronecheck
     //  - combined (almost like dronecheck plus login-ipr)
+    //  - verify
     channels.example.org login-ipr
     botcheck.example.org dronecheck
+    verify.example.org verify
 }
 
 iauth_class {
@@ -83,7 +87,7 @@ iauth_class {
         username "joe-oper"
         address "127.0.0.0/8"
     }
-    "r002" { class trusted; account ircoper }
+    "r002" { class trusted; account "ircoper" }
     "r003" { class clients; xreply_ok "euworld.example.org" }
     "r004" { class default_clients }
 }

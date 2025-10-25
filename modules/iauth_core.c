@@ -256,9 +256,23 @@ struct iauth_request *iauth_validate_request(const char routing[])
  */
 void iauth_check_request(struct iauth_request *request)
 {
+    struct iauth_module *plugin;
+    struct set_node *node;
+    struct iauth_flagset effective_flags = iauth_flags;
+
+    /* Allow modules to adjust their effective requirements dynamically */
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->calc_effective_flags != NULL) {
+            struct iauth_flagset module_flags;
+            plugin->calc_effective_flags(request, &module_flags);
+            BITSET_OR(effective_flags, effective_flags, module_flags);
+        }
+    }
+
     if (request->holds == 0
         && !BITSET_GET(request->flags, IAUTH_RESPONDED)
-        && !BITSET_H_ANDNOT(iauth_flags, request->flags)) {
+        && !BITSET_H_ANDNOT(effective_flags, request->flags)) {
         if (request->soft_holds == 0)
             iauth_accept(request);
         else if (!BITSET_GET(request->flags, IAUTH_SOFT_DONE)) {
@@ -275,7 +289,7 @@ void iauth_check_request(struct iauth_request *request)
                     request->client);
     } else {
         log_message(iauth_log, LOG_DEBUG, " -> client %d still waiting: %#x & ~%#x (plus %d soft holds)",
-                    request->client, iauth_flags.bits[0], request->flags.bits[0],
+                    request->client, effective_flags.bits[0], request->flags.bits[0],
                     request->soft_holds);
     }
 }
@@ -420,7 +434,7 @@ static void notify_pre_registered(struct iauth_request *req)
 
 void iauth_accept(struct iauth_request *req)
 {
-    if (BITSET_GET(req->flags, IAUTH_CAP_PENDING)) {
+    if (BITSET_GET(req->flags, IAUTH_GOT_CAP_START) && !BITSET_GET(req->flags, IAUTH_GOT_CAP_END)) {
         log_message(iauth_log, LOG_DEBUG, " -> client %d has CAP pending, delaying registration", req->client);
         return;
     }
@@ -807,6 +821,22 @@ static void parse_error(struct iauth_request *req, int argc, char *argv[])
     }
 }
 
+static void parse_cap(struct iauth_request *req, enum iauth_flags flag)
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    BITSET_SET(req->flags, flag);
+
+    /* Notify modules that CAP negotiation has ended */
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, flag);
+    }
+    iauth_check_request(req);
+}
+
 static void parse_server_info(int argc, char *argv[])
 {
     struct iauth_module *plugin;
@@ -966,11 +996,10 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
             parse_registered(req, 1);
             break;
         case 'c':
-            BITSET_SET(req->flags, IAUTH_CAP_PENDING);
+            parse_cap(req, IAUTH_GOT_CAP_START);
             break;
         case 'e':
-            BITSET_CLEAR(req->flags, IAUTH_CAP_PENDING);
-            iauth_check_request(req);
+            parse_cap(req, IAUTH_GOT_CAP_END);
             break;
         case 'E':
             parse_error(req, argc, argv);

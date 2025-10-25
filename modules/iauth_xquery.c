@@ -435,12 +435,12 @@ static void iauth_xquery_check(struct iauth_request *req,
             && !cli->password[0])
             continue; /* do not send a login-type request with no password */
 
-        /* We wait for account for as long as the client is negotiating capabilities. */
-        if (srv->type == VERIFY && BITSET_GET(req->flags, IAUTH_CAP_PENDING))
-            BITSET_SET(iauth_xquery_flags[VERIFY], IAUTH_GOT_ACCOUNT);
-
-        if (srv->type == VERIFY && !BITSET_GET(req->flags, IAUTH_CAP_PENDING))
-            BITSET_CLEAR(iauth_xquery_flags[VERIFY], IAUTH_GOT_ACCOUNT);
+        /* For VERIFY services, require IAUTH_GOT_ACCOUNT during CAP negotiation */
+        if (srv->type == VERIFY 
+            && BITSET_GET(req->flags, IAUTH_GOT_CAP_START) 
+            && !BITSET_GET(req->flags, IAUTH_GOT_CAP_END)
+            && !BITSET_GET(req->flags, IAUTH_GOT_ACCOUNT))
+            continue; /* wait for account during CAP negotiation */
 
         if (BITSET_H_ANDNOT(iauth_xquery_flags[srv->type], req->flags))
             continue; /* missing necessary information */
@@ -622,8 +622,33 @@ static void iauth_xquery_user_info(struct iauth_request *req)
     iauth_xquery_check(req, IAUTH_GOT_USER_INFO);
 }
 
+static void iauth_xquery_calc_effective_flags(const struct iauth_request *req, struct iauth_flagset *flags_out)
+{
+    unsigned int ii;
+
+    BITSET_ZERO(*flags_out);
+
+    /* Compute effective flags based on service requirements and CAP negotiation state.
+     * For VERIFY services, we require IAUTH_GOT_ACCOUNT during CAP negotiation.
+     */
+    if (BITSET_GET(req->flags, IAUTH_GOT_CAP_START) && !BITSET_GET(req->flags, IAUTH_GOT_CAP_END)) {
+        for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
+            struct iauth_xquery_service *srv = iauth_xquery_services.vec[ii];
+            if (!srv || !srv->configured)
+                continue;
+
+            /* If we have a VERIFY service configured, add IAUTH_GOT_ACCOUNT as a required flag during CAP */
+            if (srv->type == VERIFY) {
+                BITSET_SET(*flags_out, IAUTH_GOT_ACCOUNT);
+                break;
+            }
+        }
+    }
+}
+
 static struct iauth_module iauth_xquery = {
     .owner = "iauth_xquery",
+    .calc_effective_flags = iauth_xquery_calc_effective_flags,
     .field_change = iauth_xquery_check,
     .get_config = iauth_xquery_report_config,
     .get_stats = iauth_xquery_report_stats,

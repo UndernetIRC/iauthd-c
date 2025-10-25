@@ -112,8 +112,10 @@ enum iauth_client_state {
 enum iauth_flags {
     /** Set when we have made a decision for this request. */
     IAUTH_RESPONDED,
-    /** Set when the client has sent a CAP LS but not CAP END. */
-    IAUTH_CAP_PENDING,
+    /** Set when the client has sent a CAP LS. */
+    IAUTH_GOT_CAP_START,
+    /** Set when the client has sent CAP END. */
+    IAUTH_GOT_CAP_END,
     /** Set when we have sent a "soft done" for this request. */
     IAUTH_SOFT_DONE,
     /** Set when we get an 'N' or 'd' message. */
@@ -285,6 +287,13 @@ struct iauth_module {
      * client.
      */
     void (*error)(struct iauth_request *req, const char type[], const char info[]);
+
+    /** Handler for calculating effective flags that may change dynamically.
+     * If this callback is provided, it will be called during iauth_check_request()
+     * to compute the current effective flags for this module, which are OR'd into
+     * the global effective_flags used for checking request readiness.
+     */
+    void (*calc_effective_flags)(const struct iauth_request *req, struct iauth_flagset *flags_out);
 
     /** Handler for simple field changes.
      *

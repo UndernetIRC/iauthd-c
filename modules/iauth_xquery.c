@@ -622,6 +622,38 @@ static void iauth_xquery_user_info(struct iauth_request *req)
     iauth_xquery_check(req, IAUTH_GOT_USER_INFO);
 }
 
+static void iauth_xquery_disconnect(struct iauth_request *req)
+{
+    struct iauth_xquery_client *cli;
+    struct iauth_xquery_service *srv;
+    void *ptr;
+    unsigned int ii;
+    char routing[ROUTINGLEN];
+
+    /* Find the client's state struct. */
+    ptr = &iauth_xquery;
+    cli = set_find(&req->data, &ptr);
+    if (!cli)
+        return;
+
+    /* Build routing string */
+    iauth_routing(req, routing, sizeof(routing));
+
+    /* Send DISCONNECT to all services that have an outstanding query */
+    for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
+        srv = iauth_xquery_services.vec[ii];
+        if (!srv || !srv->configured)
+            continue;
+
+        /* Check if this service has an outstanding query (ref_mask bit set) */
+        if (cli->ref_mask & (1u << ii)) {
+            iauth_x_query(srv->name, routing, "DISCONNECT");
+            log_message(iauth_xquery_log, LOG_DEBUG,
+                "Sent DISCONNECT to %s for client %d", srv->name, req->client);
+        }
+    }
+}
+
 static void iauth_xquery_calc_effective_flags(const struct iauth_request *req, struct iauth_flagset *flags_out)
 {
     unsigned int ii;
@@ -649,6 +681,7 @@ static void iauth_xquery_calc_effective_flags(const struct iauth_request *req, s
 static struct iauth_module iauth_xquery = {
     .owner = "iauth_xquery",
     .calc_effective_flags = iauth_xquery_calc_effective_flags,
+    .disconnect = iauth_xquery_disconnect,
     .field_change = iauth_xquery_check,
     .get_config = iauth_xquery_report_config,
     .get_stats = iauth_xquery_report_stats,

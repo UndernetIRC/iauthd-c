@@ -83,9 +83,9 @@ $exp->send(<<"HERE");
 20 u username
 20 n Nick
 HERE
-$exp->expect(1, '-re', '^X botcheck.example.org 14_2 :CHECK Nick username 127.1.2.3 trusted.example.org :Trusted\r?$')
+$exp->expect(1, '-re', '^X botcheck.example.org 14_2 :CHECK Nick username 127.1.2.3 trusted.example.org \* :Trusted\r?$')
 	or die "did not get CHECK to botcheck.* for client 20\n";
-$exp->expect(1, '-re', '^X combined.example.org 14_2 :CHECK Nick username 127.1.2.3 trusted.example.org :Trusted\r?$')
+$exp->expect(1, '-re', '^X combined.example.org 14_2 :CHECK Nick username 127.1.2.3 trusted.example.org \* :Trusted\r?$')
 	or die "did not get CHECK to combined.* for client 20\n";
 $exp->send("-1 X combined.example.org 14_2 OK\n");
 $exp->send("-1 X botcheck.example.org 14_2 :NO you do not belong here\n");
@@ -102,7 +102,7 @@ $exp->send(<<"HERE");
 21 u ~fakename
 21 n AAAAD
 HERE
-$exp->expect(1, '-re', '^X combined.example.org 15_3 :CHECK AAAAD ~fakename 127.2.3.4 trusted.example.org :These are not the droids you are looking for\r?$')
+$exp->expect(1, '-re', '^X combined.example.org 15_3 :CHECK AAAAD ~fakename 127.2.3.4 trusted.example.org \* :These are not the droids you are looking for\r?$')
 	or die "did not get CHECK to combined.* for client 21\n";
 $exp->send(<<"HERE");
 -1 X bogus.example.org 15_3 :OK who are you going to believe?
@@ -215,7 +215,7 @@ $exp->send(<<"HERE");
 26 n NickNolte
 26 D
 HERE
-$exp->expect(1, '-re', '^X botcheck.example.org 1a_8 :CHECK NickNolte ~username 127.3.4.5 127.3.4.5 :r300 might fire, but iauth_xquery is still waiting\r?$')
+$exp->expect(1, '-re', '^X botcheck.example.org 1a_8 :CHECK NickNolte ~username 127.3.4.5 127.3.4.5 \* :r300 might fire, but iauth_xquery is still waiting\r?$')
 	or die "did not check CHECK request for client 26\n";
 
 # Client 27 checks that clients get a "soft done" with no dronecheck.
@@ -226,7 +226,7 @@ $exp->send(<<"HERE");
 27 u mccarthy
 27 n joe
 HERE
-$exp->expect(1, '-re', '^X botcheck.example.org 1b_9 :CHECK joe mccarthy 127.4.5.6 untrusted.example.org :I may be a drone\r?$')
+$exp->expect(1, '-re', '^X botcheck.example.org 1b_9 :CHECK joe mccarthy 127.4.5.6 untrusted.example.org \* :I may be a drone\r?$')
 	or die "did not get CHECK request for client 27\n";
 $exp->send("-1 x botcheck.example.org 1b_9\n");
 $exp->expect(1, '-re', '^d 27 127.4.5.6 23456')

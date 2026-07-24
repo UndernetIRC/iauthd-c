@@ -73,10 +73,17 @@
  * The supported service types are:
  *  login - LOGIN <accountname password>
  *  login-ipr - LOGIN2 <ip-addr> <hostname> <username> <accountname password>
- *  dronecheck - CHECK <nickname> <username> <ip-addr> <hostname> <realname>
+ *  dronecheck - CHECK <nickname> <username> <ip-addr> <hostname> <account | *> :<realname>
  *  verify - VERIFY <nickname> <username> <ip-addr> <hostname> <account | *> :<realname>
- *  combined - CHECK <nickname> <username> <ip-addr> <hostname> <realname>,
+ *  combined - CHECK <nickname> <username> <ip-addr> <hostname> <account | *> :<realname>,
  *   then LOGIN <accountname password>
+ *
+ * CHECK (dronecheck) and VERIFY wait for an account stamp or CAP end
+ * during CAP negotiation before querying, so <account> reflects SASL
+ * (or is "*" when the client has none).  combined does not wait: it
+ * sends CHECK (and LOGIN, if a password is present) as soon as the
+ * drone/check fields are ready; account is "*" unless one already
+ * arrived.
  *
  * Account stamps are ignored for "dronecheck" services' OK messages.
  *
@@ -435,12 +442,16 @@ static void iauth_xquery_check(struct iauth_request *req,
             && !cli->password[0])
             continue; /* do not send a login-type request with no password */
 
-        /* For VERIFY services, require IAUTH_GOT_ACCOUNT during CAP negotiation */
-        if (srv->type == VERIFY 
-            && BITSET_GET(req->flags, IAUTH_GOT_CAP_START) 
+        /* CHECK (dronecheck) / VERIFY: during CAP negotiation, wait for
+         * an account stamp or CAP end so the query can include the
+         * account (or "*").  combined does not wait — it fires as soon
+         * as the check fields are ready.
+         */
+        if ((srv->type == VERIFY || srv->type == DRONECHECK)
+            && BITSET_GET(req->flags, IAUTH_GOT_CAP_START)
             && !BITSET_GET(req->flags, IAUTH_GOT_CAP_END)
             && !BITSET_GET(req->flags, IAUTH_GOT_ACCOUNT))
-            continue; /* wait for account during CAP negotiation */
+            continue; /* wait for account or CAP end */
 
         if (BITSET_H_ANDNOT(iauth_xquery_flags[srv->type], req->flags))
             continue; /* missing necessary information */
@@ -473,9 +484,11 @@ static void iauth_xquery_check(struct iauth_request *req,
 
         if (srv->type == DRONECHECK || srv->type == COMBINED)
             iauth_x_query(srv->name, routing,
-                          "CHECK %s %s %s %s :%s",
+                          "CHECK %s %s %s %s %s :%s",
                           req->nickname, username, req->text_addr,
-                          hostname, req->realname);
+                          hostname,
+                          req->account[0] == '\0' ? "*" : req->account,
+                          req->realname);
 
         if (!cli->password[0]) {
             /* do not send a login-type line */
@@ -660,8 +673,9 @@ static void iauth_xquery_calc_effective_flags(const struct iauth_request *req, s
 
     BITSET_ZERO(*flags_out);
 
-    /* Compute effective flags based on service requirements and CAP negotiation state.
-     * For VERIFY services, we require IAUTH_GOT_ACCOUNT during CAP negotiation.
+    /* During CAP negotiation, delay accept until an account arrives (or
+     * CAP ends) when a CHECK/VERIFY service still needs that info.
+     * combined is excluded — it must not block on account.
      */
     if (BITSET_GET(req->flags, IAUTH_GOT_CAP_START) && !BITSET_GET(req->flags, IAUTH_GOT_CAP_END)) {
         for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
@@ -669,8 +683,7 @@ static void iauth_xquery_calc_effective_flags(const struct iauth_request *req, s
             if (!srv || !srv->configured)
                 continue;
 
-            /* If we have a VERIFY service configured, add IAUTH_GOT_ACCOUNT as a required flag during CAP */
-            if (srv->type == VERIFY) {
+            if (srv->type == VERIFY || srv->type == DRONECHECK) {
                 BITSET_SET(*flags_out, IAUTH_GOT_ACCOUNT);
                 break;
             }

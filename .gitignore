@@ -22,3 +22,9 @@
 
 # Please name your build and other local trees like this.
 /+*/
+
+# Python e2e test artifacts (under /tests alongside C unit tests)
+/tests/.venv/
+/tests/.pytest_cache/
+/tests/*.egg-info/
+/tests/.ruff_cache/

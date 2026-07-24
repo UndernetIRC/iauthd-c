@@ -1,0 +1,15 @@
+.git
++*/
+.venv
+**/__pycache__
+**/*.pyc
+tests/.pytest_cache
+tests/.venv
+**/debug-output
+autom4te.cache
+**/*.o
+**/*.lo
+**/*.la
+**/.libs
+autoconf.h.in~
+configure~

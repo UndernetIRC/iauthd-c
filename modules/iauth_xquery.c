@@ -73,9 +73,17 @@
  * The supported service types are:
  *  login - LOGIN <accountname password>
  *  login-ipr - LOGIN2 <ip-addr> <hostname> <username> <accountname password>
- *  dronecheck - CHECK <nickname> <username> <ip-addr> <hostname> <realname>
- *  combined - CHECK <nickname> <username> <ip-addr> <hostname> <realname>,
+ *  dronecheck - CHECK <nickname> <username> <ip-addr> <hostname> <account | *> :<realname>
+ *  verify - VERIFY <nickname> <username> <ip-addr> <hostname> <account | *> :<realname>
+ *  combined - CHECK <nickname> <username> <ip-addr> <hostname> <account | *> :<realname>,
  *   then LOGIN <accountname password>
+ *
+ * CHECK (dronecheck) and VERIFY wait for an account stamp or CAP end
+ * during CAP negotiation before querying, so <account> reflects SASL
+ * (or is "*" when the client has none).  combined does not wait: it
+ * sends CHECK (and LOGIN, if a password is present) as soon as the
+ * drone/check fields are ready; account is "*" unless one already
+ * arrived.
  *
  * Account stamps are ignored for "dronecheck" services' OK messages.
  *
@@ -134,6 +142,7 @@ enum iauth_xquery_type {
     LOGIN,
     LOGIN_IPR,
     DRONECHECK,
+    VERIFY,
     COMBINED
 };
 
@@ -142,6 +151,7 @@ static const char *type_names[] = {
     "login",
     "login-ipr",
     "dronecheck",
+    "verify",
     "combined"
 };
 
@@ -188,7 +198,7 @@ static struct {
 static struct iauth_module iauth_xquery;
 static struct log_type *iauth_xquery_log;
 static struct iauth_xquery_services iauth_xquery_services;
-static struct iauth_flagset iauth_xquery_flags[4];
+static struct iauth_flagset iauth_xquery_flags[5];
 
 static struct {
     unsigned long n_cli_allocs;
@@ -268,6 +278,8 @@ static void iauth_xquery_set_account(struct iauth_request *req,
         req->account[ii] = account[ii];
     for (; ii < ACCOUNTLEN+1; ++ii)
         req->account[ii] = '\0';
+
+    BITSET_SET(req->flags, IAUTH_GOT_ACCOUNT);
 }
 
 static void iauth_xquery_x_reply(const char service[], const char routing[],
@@ -302,13 +314,19 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
     /* Handle the response. */
     if (!reply) {
         srv->unlinked++;
-        if (srv->type != DRONECHECK)
+        if (srv->type != DRONECHECK && srv->type != VERIFY)
             iauth_challenge(req, "The login server is currently disconnected.  Please excuse the inconvenience.");
     } else if (reply[0] == 'O' && reply[1] == 'K'
                && (reply[2] == '\0' || reply[2] == ' ')) {
-        cli->ok_mask |= 1u << ii;
-        cli->more_mask &= ~(1u << ii);
-        if (reply[2] != ' ') {
+        if (srv->type == VERIFY) {
+            if (cli->more_mask & (1u << ii)) {
+                req->holds--;
+                log_message(iauth_xquery_log, LOG_DEBUG,
+                    "release VERIFY hold on %s for %d", routing, req->client);
+            }
+            if (reply[2] == ' ')
+                iauth_challenge(req, reply + 3);
+        } else if (reply[2] != ' ') {
             srv->good_no_acct++;
         } else if ((srv->type == LOGIN)
                    || (srv->type == LOGIN_IPR)
@@ -333,6 +351,8 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
                         srv->name);
             srv->good_no_acct++;
         }
+        cli->ok_mask |= 1u << ii;
+        cli->more_mask &= ~(1u << ii);
     } else if (0 == strncmp(reply, "NO ", 3)) {
         srv->bad++;
         if (req->account[0] != '\0')
@@ -341,9 +361,19 @@ static void iauth_xquery_x_reply(const char service[], const char routing[],
         return;
     } else if (0 == strncmp(reply, "AGAIN ", 6)) {
         iauth_challenge(req, reply + 6);
+        /* Don't clear ref_mask for AGAIN - service is still waiting for client response */
+        return;
     } else if (0 == strncmp(reply, "MORE ", 5)) {
         cli->more_mask |= 1u << ii;
         iauth_challenge(req, reply + 5);
+        /* For VERIFY services, create a hard hold instead of soft hold */
+        if (srv->type == VERIFY) {
+            req->holds++;
+            log_message(iauth_xquery_log, LOG_DEBUG,
+                "hard hold for %d for VERIFY MORE", req->client);
+        }
+        /* Don't clear ref_mask for MORE - service is still waiting for client response */
+        return;
     } else {
         log_message(iauth_xquery_log, LOG_WARNING, "Unexpected XR reply: %s", reply);
         return;
@@ -405,12 +435,23 @@ static void iauth_xquery_check(struct iauth_request *req,
 
         if ((cli->sent_mask & (1u << ii))
             && ((flag != IAUTH_GOT_PASSWORD)
-                || (srv->type == DRONECHECK)))
+                || (srv->type == DRONECHECK || srv->type == VERIFY)))
             continue; /* already asked this server */
 
         if ((srv->type == LOGIN || srv->type == LOGIN_IPR)
             && !cli->password[0])
             continue; /* do not send a login-type request with no password */
+
+        /* CHECK (dronecheck) / VERIFY: during CAP negotiation, wait for
+         * an account stamp or CAP end so the query can include the
+         * account (or "*").  combined does not wait — it fires as soon
+         * as the check fields are ready.
+         */
+        if ((srv->type == VERIFY || srv->type == DRONECHECK)
+            && BITSET_GET(req->flags, IAUTH_GOT_CAP_START)
+            && !BITSET_GET(req->flags, IAUTH_GOT_CAP_END)
+            && !BITSET_GET(req->flags, IAUTH_GOT_ACCOUNT))
+            continue; /* wait for account or CAP end */
 
         if (BITSET_H_ANDNOT(iauth_xquery_flags[srv->type], req->flags))
             continue; /* missing necessary information */
@@ -433,11 +474,21 @@ static void iauth_xquery_check(struct iauth_request *req,
 
         hostname = req->hostname[0] ? req->hostname : req->text_addr;
 
+        if (srv->type == VERIFY)
+            iauth_x_query(srv->name, routing,
+                          "VERIFY %s %s %s %s %s :%s",
+                          req->nickname, username, req->text_addr,
+                          hostname,
+                          req->account[0] == '\0' ? "*" : req->account,
+                          req->realname);
+
         if (srv->type == DRONECHECK || srv->type == COMBINED)
             iauth_x_query(srv->name, routing,
-                          "CHECK %s %s %s %s :%s",
+                          "CHECK %s %s %s %s %s :%s",
                           req->nickname, username, req->text_addr,
-                          hostname, req->realname);
+                          hostname,
+                          req->account[0] == '\0' ? "*" : req->account,
+                          req->realname);
 
         if (!cli->password[0]) {
             /* do not send a login-type line */
@@ -518,6 +569,9 @@ static void iauth_xquery_check_password(struct iauth_request *req,
         req->holds++;
         log_message(iauth_xquery_log, LOG_DEBUG,
             "hold for %d for !+x", req->client);
+        if (iauth_get_kill_loc()[0] != '\0') {
+            iauth_kill(req, iauth_get_kill_loc());
+        }
     } else if (!is_hidden_only && was_hidden_only && no_account) {
         req->holds--;
         log_message(iauth_xquery_log, LOG_DEBUG,
@@ -560,9 +614,15 @@ static void iauth_xquery_password(struct iauth_request *req,
             iauth_x_query(srv->name, routing, "MORE %s", password);
             cli->more_mask &= ~(1u << ii);
             if (!cli->ref_mask) {
-                req->soft_holds++;
-                log_message(iauth_xquery_log, LOG_DEBUG,
-                    "adding soft hold on %s for MORE %s", routing, srv->name);
+                if (srv->type == VERIFY) {
+                    req->holds++;
+                    log_message(iauth_xquery_log, LOG_DEBUG,
+                        "adding hard hold on %s for VERIFY MORE %s", routing, srv->name);
+                } else {
+                    req->soft_holds++;
+                    log_message(iauth_xquery_log, LOG_DEBUG,
+                        "adding soft hold on %s for MORE %s", routing, srv->name);
+                }
             }
             cli->ref_mask |= 1u << ii;
             srv->refs++;
@@ -575,8 +635,66 @@ static void iauth_xquery_user_info(struct iauth_request *req)
     iauth_xquery_check(req, IAUTH_GOT_USER_INFO);
 }
 
+static void iauth_xquery_disconnect(struct iauth_request *req)
+{
+    struct iauth_xquery_client *cli;
+    struct iauth_xquery_service *srv;
+    void *ptr;
+    unsigned int ii;
+    char routing[ROUTINGLEN];
+
+    /* Find the client's state struct. */
+    ptr = &iauth_xquery;
+    cli = set_find(&req->data, &ptr);
+    if (!cli)
+        return;
+
+    /* Build routing string */
+    iauth_routing(req, routing, sizeof(routing));
+
+    /* Send DISCONNECT to all services that have an outstanding query */
+    for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
+        srv = iauth_xquery_services.vec[ii];
+        if (!srv || !srv->configured)
+            continue;
+
+        /* Check if this service has an outstanding query (ref_mask bit set) */
+        if (cli->ref_mask & (1u << ii)) {
+            iauth_x_query(srv->name, routing, "DISCONNECT");
+            log_message(iauth_xquery_log, LOG_DEBUG,
+                "Sent DISCONNECT to %s for client %d", srv->name, req->client);
+        }
+    }
+}
+
+static void iauth_xquery_calc_effective_flags(const struct iauth_request *req, struct iauth_flagset *flags_out)
+{
+    unsigned int ii;
+
+    BITSET_ZERO(*flags_out);
+
+    /* During CAP negotiation, delay accept until an account arrives (or
+     * CAP ends) when a CHECK/VERIFY service still needs that info.
+     * combined is excluded — it must not block on account.
+     */
+    if (BITSET_GET(req->flags, IAUTH_GOT_CAP_START) && !BITSET_GET(req->flags, IAUTH_GOT_CAP_END)) {
+        for (ii = 0; ii < iauth_xquery_services.used; ++ii) {
+            struct iauth_xquery_service *srv = iauth_xquery_services.vec[ii];
+            if (!srv || !srv->configured)
+                continue;
+
+            if (srv->type == VERIFY || srv->type == DRONECHECK) {
+                BITSET_SET(*flags_out, IAUTH_GOT_ACCOUNT);
+                break;
+            }
+        }
+    }
+}
+
 static struct iauth_module iauth_xquery = {
     .owner = "iauth_xquery",
+    .calc_effective_flags = iauth_xquery_calc_effective_flags,
+    .disconnect = iauth_xquery_disconnect,
     .field_change = iauth_xquery_check,
     .get_config = iauth_xquery_report_config,
     .get_stats = iauth_xquery_report_stats,
@@ -683,6 +801,11 @@ void module_constructor(UNUSED_ARG(const char name[]))
                      IAUTH_GOT_IDENT,
                      IAUTH_GOT_PASSWORD);
     BITSET_MULTI_SET(iauth_xquery_flags[DRONECHECK],
+                     IAUTH_GOT_HOSTNAME,
+                     IAUTH_GOT_IDENT,
+                     IAUTH_GOT_NICK,
+                     IAUTH_GOT_USER_INFO);
+    BITSET_MULTI_SET(iauth_xquery_flags[VERIFY],
                      IAUTH_GOT_HOSTNAME,
                      IAUTH_GOT_IDENT,
                      IAUTH_GOT_NICK,

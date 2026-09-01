@@ -97,6 +97,9 @@ unsigned int irc_check_mask(const irc_inaddr *check, const irc_inaddr *mask, uns
 /** Maximum length of an iauthd-c standard routing string. */
 #define ROUTINGLEN (IRC_NTOP_MAX + 20)
 
+/** Maximum length of a TLS fingerprint. */
+#define CERTLEN 64
+
 /** Possible states for a client (with respect to IAuth). */
 enum iauth_client_state {
     IAUTH_REGISTER,
@@ -109,6 +112,10 @@ enum iauth_client_state {
 enum iauth_flags {
     /** Set when we have made a decision for this request. */
     IAUTH_RESPONDED,
+    /** Set when the client has sent a CAP LS. */
+    IAUTH_GOT_CAP_START,
+    /** Set when the client has sent CAP END. */
+    IAUTH_GOT_CAP_END,
     /** Set when we have sent a "soft done" for this request. */
     IAUTH_SOFT_DONE,
     /** Set when we get an 'N' or 'd' message. */
@@ -121,6 +128,10 @@ enum iauth_flags {
     IAUTH_GOT_USER_INFO,
     /** Set when we get a 'P' message. */
     IAUTH_GOT_PASSWORD,
+    /** Set when we get a 'Z' message. */
+    IAUTH_GOT_FINGERPRINT,
+    /** Set when we get an 'A' message. */
+    IAUTH_GOT_ACCOUNT,
     /** Set when we get a 'H' message. */
     IAUTH_GOT_HURRY_UP,
     /** Set when we get blank 'u' message, but have not gotten 'U'. */
@@ -212,6 +223,9 @@ struct iauth_request {
     /** Text form of #remote_addr. */
     char text_addr[IRC_NTOP_MAX];
 
+    /** TLS fingerprint. */
+    char tls_fingerprint[CERTLEN + 1];
+
     /** Contains submodule-specific data.
      *
      * No special cleanup of the data is performed.  The first element
@@ -274,6 +288,13 @@ struct iauth_module {
      */
     void (*error)(struct iauth_request *req, const char type[], const char info[]);
 
+    /** Handler for calculating effective flags that may change dynamically.
+     * If this callback is provided, it will be called during iauth_check_request()
+     * to compute the current effective flags for this module, which are OR'd into
+     * the global effective_flags used for checking request readiness.
+     */
+    void (*calc_effective_flags)(const struct iauth_request *req, struct iauth_flagset *flags_out);
+
     /** Handler for simple field changes.
      *
      * In particular, \a flag gets #IAUTH_GOT_HOSTNAME for a 'N' or 'd'
@@ -331,6 +352,8 @@ struct iauth_module {
 /* These functions are used to (un-)register IAuth decision modules. */
 void iauth_register_module(struct iauth_module *plugin);
 void iauth_unregister_module(struct iauth_module *plugin);
+
+const char* iauth_get_kill_loc(void);
 
 /* These functions generate IAuth messages to the server. */
 void iauth_accept(struct iauth_request *req);

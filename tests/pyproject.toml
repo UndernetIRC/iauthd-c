@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iauthd-c-tests"
+version = "0.1.0"
+description = "Docker e2e tests for iauthd-c (undernet-development-env + XQUERY peers)"
+requires-python = ">=3.10"
+dependencies = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-timeout",
+]
+
+[tool.setuptools]
+packages = []
+py-modules = ["irc_client", "p10_server", "xquery_service"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+timeout = 120
+timeout_func_only = true
+testpaths = ["."]
+pythonpath = ["."]
+markers = [
+    "integration: end-to-end tests requiring Docker ircd+iauthd",
+]

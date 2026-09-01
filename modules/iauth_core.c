@@ -54,6 +54,9 @@ static struct conf_node_object *iauth_conf;
 /** Duration of the request timeout. */
 static struct conf_node_string *iauth_conf_timeout;
 
+/** Whether to kill connections using +x! when login, login-ipr or combined is not enabled. */
+static struct conf_node_string *iauth_conf_kill_loc;
+
 /** Last assigned serial number. */
 static unsigned int iauth_serial;
 
@@ -157,6 +160,15 @@ void iauth_unregister_module(struct iauth_module *plugin)
     calc_iauth_flags();
 }
 
+/** Returns the kill_loc configuration value. Empty if unset.
+ *
+ * \return The kill_loc configuration value. Empty string if unset.
+ */
+const char* iauth_get_kill_loc(void)
+{
+    return iauth_conf_kill_loc ? iauth_conf_kill_loc->parsed.p_string : "";
+}
+
 /** Looks up the request for \a client_id.
  *
  * \param[in] client_id ircd-assigned client identifier
@@ -244,9 +256,23 @@ struct iauth_request *iauth_validate_request(const char routing[])
  */
 void iauth_check_request(struct iauth_request *request)
 {
+    struct iauth_module *plugin;
+    struct set_node *node;
+    struct iauth_flagset effective_flags = iauth_flags;
+
+    /* Allow modules to adjust their effective requirements dynamically */
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->calc_effective_flags != NULL) {
+            struct iauth_flagset module_flags;
+            plugin->calc_effective_flags(request, &module_flags);
+            BITSET_OR(effective_flags, effective_flags, module_flags);
+        }
+    }
+
     if (request->holds == 0
         && !BITSET_GET(request->flags, IAUTH_RESPONDED)
-        && !BITSET_H_ANDNOT(iauth_flags, request->flags)) {
+        && !BITSET_H_ANDNOT(effective_flags, request->flags)) {
         if (request->soft_holds == 0)
             iauth_accept(request);
         else if (!BITSET_GET(request->flags, IAUTH_SOFT_DONE)) {
@@ -263,7 +289,7 @@ void iauth_check_request(struct iauth_request *request)
                     request->client);
     } else {
         log_message(iauth_log, LOG_DEBUG, " -> client %d still waiting: %#x & ~%#x (plus %d soft holds)",
-                    request->client, iauth_flags.bits[0], request->flags.bits[0],
+                    request->client, effective_flags.bits[0], request->flags.bits[0],
                     request->soft_holds);
     }
 }
@@ -408,6 +434,11 @@ static void notify_pre_registered(struct iauth_request *req)
 
 void iauth_accept(struct iauth_request *req)
 {
+    if (BITSET_GET(req->flags, IAUTH_GOT_CAP_START) && !BITSET_GET(req->flags, IAUTH_GOT_CAP_END)) {
+        log_message(iauth_log, LOG_DEBUG, " -> client %d has CAP pending, delaying registration", req->client);
+        return;
+    }
+
     assert(!BITSET_GET(req->flags, IAUTH_RESPONDED));
     notify_pre_registered(req);
     BITSET_SET(req->flags, IAUTH_RESPONDED);
@@ -691,6 +722,52 @@ static void parse_nick(struct iauth_request *req, char nick[])
     iauth_check_request(req);
 }
 
+static void parse_fingerprint(struct iauth_request *req, char fingerprint[])
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 Z ...");
+        return;
+    }
+    if (fingerprint) {
+        strncpy(req->tls_fingerprint, fingerprint, CERTLEN);
+        req->tls_fingerprint[CERTLEN] = '\0';
+        BITSET_SET(req->flags, IAUTH_GOT_FINGERPRINT);
+    }
+
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_FINGERPRINT);
+    }
+    iauth_check_request(req);
+}
+
+static void parse_account(struct iauth_request *req, char account[])
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    if (!req) {
+        iauth_send_opers("ircd sent garbage: -1 A ...");
+        return;
+    }
+    if (account) {
+        strncpy(req->account, account, ACCOUNTLEN);
+        req->account[ACCOUNTLEN] = '\0';
+        BITSET_SET(req->flags, IAUTH_GOT_ACCOUNT);
+    }
+
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, IAUTH_GOT_ACCOUNT);
+    }
+    iauth_check_request(req);
+}
+
 static void parse_hurry_up(struct iauth_request *req)
 {
     struct iauth_module *plugin;
@@ -742,6 +819,22 @@ static void parse_error(struct iauth_request *req, int argc, char *argv[])
         if (plugin->error != NULL)
             plugin->error(req, argv[1], argv[2]);
     }
+}
+
+static void parse_cap(struct iauth_request *req, enum iauth_flags flag)
+{
+    struct iauth_module *plugin;
+    struct set_node *node;
+
+    BITSET_SET(req->flags, flag);
+
+    /* Notify modules that CAP negotiation has ended */
+    for (node = set_first(iauth_modules); node; node = set_next(node)) {
+        plugin = ENCLOSING_STRUCT(node, struct iauth_module, node);
+        if (plugin->field_change != NULL)
+            plugin->field_change(req, flag);
+    }
+    iauth_check_request(req);
 }
 
 static void parse_server_info(int argc, char *argv[])
@@ -890,11 +983,23 @@ static void iauth_read(evutil_socket_t fd, short events, void *iauth_in_v)
         case 'n':
             parse_nick(req, argv[1]);
             break;
+        case 'A':
+            parse_account(req, argv[1]);
+            break;
+        case 'Z':
+            parse_fingerprint(req, argv[1]);
+            break;
         case 'H':
             parse_hurry_up(req);
             break;
         case 'T':
             parse_registered(req, 1);
+            break;
+        case 'c':
+            parse_cap(req, IAUTH_GOT_CAP_START);
+            break;
+        case 'e':
+            parse_cap(req, IAUTH_GOT_CAP_END);
             break;
         case 'E':
             parse_error(req, argc, argv);
@@ -954,6 +1059,7 @@ void module_constructor(UNUSED_ARG(const char name[]))
     iauth_modules = set_alloc(set_compare_charp, NULL);
     iauth_conf = conf_register_object(NULL, "iauth");
     iauth_conf_timeout = conf_register_string(iauth_conf, CONF_STRING_INTERVAL, "timeout", "0");
+    iauth_conf_kill_loc = conf_register_string(iauth_conf, CONF_STRING_PLAIN, "kill_loc", "");
 
     event_base_once(ev_base, -1, EV_TIMEOUT, iauth_startup, NULL, &tv_zero);
     iauth_in = evbuffer_new();
